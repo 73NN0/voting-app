@@ -23,6 +23,21 @@ func getDb(t *testing.T) *sql.DB {
 	return dbConn
 }
 
+func tableExists(t *testing.T, db *sql.DB, name string) {
+	t.Helper()
+	var exists int
+
+	err := db.QueryRow(`
+    SELECT COUNT(*)
+	FROM sqlite_master
+	WHERE type='table' AND name=?
+	`, name).Scan(&exists)
+
+	if err != nil || exists == 0 {
+		t.Fatalf("table %s doesn't exist", name)
+	}
+}
+
 // GIVEN : SQL Schema and empty database
 // WHEN : Execute InitializeDatabaseSchemas
 // GIVEN : SQL database whith initialized tables
@@ -35,8 +50,20 @@ func TestInitializeDatabaseSchemas(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = dbConn.Exec(`SELECT 1 FROM user LIMIT 1`)
-	if err != nil {
-		t.Fatalf("table doesn't exist, err : %q\n", err)
+	tables := []string{
+		"user",
+		"user_password",
+		"vote_session",
+		"session_and_participant",
+		"question",
+		"choice",
+		"vote",
+		"vote_and_choice",
+		"user_history",
+		"result_history",
+	}
+
+	for _, table := range tables {
+		tableExists(t, dbConn, table)
 	}
 }
