@@ -1,0 +1,10 @@
+# Add patterns to ignore here, one per line
+# Example:
+# *.log
+# tmp/
+
+*.mod
+*.sum
+repomix.config.json
+.repomixignore
+voting-app.json

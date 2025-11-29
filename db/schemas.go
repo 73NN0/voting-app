@@ -12,14 +12,14 @@ CREATE TABLE IF NOT EXISTS "user" (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     email TEXT NOT NULL UNIQUE,
-    created_at TEXT NOT NULL
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE TABLE IF NOT EXISTS user_password (
     user_id TEXT PRIMARY KEY,
     password_hash TEXT,
-    created_at TEXT NOT NULL,
-    updated_at TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
     
     FOREIGN KEY (user_id) REFERENCES "user"(id) 
         ON DELETE CASCADE
@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS vote_session (
     id TEXT PRIMARY KEY,
     title TEXT NOT NULL,
     description TEXT,
-    created_at TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
     ends_at TEXT
 );
 
@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS question (
     order_num INTEGER NOT NULL,
     allow_multiple INTEGER NOT NULL DEFAULT 0,
     max_choices INTEGER NOT NULL DEFAULT 1,
-    created_at TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
     
     UNIQUE (session_id, order_num),
     
@@ -73,7 +73,7 @@ CREATE TABLE IF NOT EXISTS choice (
     question_id INTEGER NOT NULL,
     text TEXT NOT NULL,
     order_num INTEGER NOT NULL,
-    created_at TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
     
     UNIQUE (question_id, order_num),
     
@@ -88,7 +88,7 @@ CREATE TABLE IF NOT EXISTS vote (
     user_id TEXT NOT NULL,
     session_id TEXT NOT NULL,
     question_id INTEGER NOT NULL,
-    created_at TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
     
     UNIQUE (user_id, question_id),
     
@@ -127,7 +127,7 @@ CREATE TABLE IF NOT EXISTS user_history (
     string_size INTEGER NOT NULL,
     receipt_data BLOB NOT NULL,
     checksum TEXT NOT NULL,
-    created_at TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
     
     UNIQUE (user_id, session_id),
     
@@ -148,7 +148,7 @@ CREATE TABLE IF NOT EXISTS result_history (
     string_size INTEGER NOT NULL,
     result_data BLOB NOT NULL,
     checksum TEXT NOT NULL,
-    created_at TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
     
     UNIQUE (session_id),
     

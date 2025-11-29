@@ -4,24 +4,8 @@ import (
 	"database/sql"
 	"testing"
 
-	"gitlab.com/singfield/voting-app/db"
 	_ "modernc.org/sqlite"
 )
-
-func getDb(t *testing.T) *sql.DB {
-	t.Helper()
-	dbConn, err := sql.Open("sqlite", ":memory:")
-	if err != nil {
-		t.Fatalf("failed to open db: %v", err)
-	}
-
-	err = dbConn.Ping()
-	if err != nil {
-		t.Fatalf("err cannot ping database server err is %q", err)
-	}
-
-	return dbConn
-}
 
 func tableExists(t *testing.T, db *sql.DB, name string) {
 	t.Helper()
@@ -42,13 +26,8 @@ func tableExists(t *testing.T, db *sql.DB, name string) {
 // WHEN : Execute InitializeDatabaseSchemas
 // GIVEN : SQL database whith initialized tables
 func TestInitializeDatabaseSchemas(t *testing.T) {
-	dbConn := getDb(t)
-	defer dbConn.Close()
-
-	err := db.InitializeDatabaseSchemas(dbConn)
-	if err != nil {
-		t.Fatal(err)
-	}
+	dbConn, _, cleanup := setup(t, "sqlite", ":memory:")
+	defer cleanup()
 
 	tables := []string{
 		"user",

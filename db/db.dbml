@@ -1,0 +1,177 @@
+Table user [headercolor: #175e7a] {
+	id uuid [ pk, unique ]
+	name varchar(255) [ not null ]
+	email varchar(255) [ not null ]
+	created_at timestamp [ not null ]
+}
+
+Table user_password [headercolor: #175e7a] {
+	user_id uuid [ pk, unique ]
+	password_hash varchar(60)
+	created_at timestamp [ not null ]
+	updated_at timestamp
+
+	indexes {
+		(updated_at) [ name: 'idx_user_password_updated' ]
+	}
+}
+
+Table vote_session [headercolor: #175e7a] {
+	id uuid [ pk, unique ]
+	title varchar(255) [ not null ]
+	description text
+	created_at timestamp [ not null ]
+	ends_at timestamp
+}
+
+Table session_and_participant [headercolor: #175e7a] {
+	user_id uuid [ not null ]
+	session_id uuid [ not null ]
+	invited_at timestamp [ not null ]
+
+	indexes {
+		(user_id, session_id) [ name: 'session_and_participant_index_1' ]
+		(user_id) [ name: 'idx_participant_user' ]
+		(session_id) [ name: 'idx_participant_session' ]
+	}
+}
+
+Table question [headercolor: #175e7a] {
+	id int [ pk, increment, unique ]
+	session_id uuid [ not null ]
+	text varchar(255) [ not null ]
+	order_num smallint [ not null ]
+	allow_multiple boolean [ not null, default: false ]
+	max_choices smallint [ not null, default: 1 ]
+	created_at timestamp [ not null ]
+
+	indexes {
+		(session_id, order_num) [ name: 'unique_question_order', unique ]
+		(session_id) [ name: 'idx_question_session' ]
+	}
+}
+
+Table choice [headercolor: #175e7a] {
+	id int [ pk, increment, unique ]
+	question_id int [ not null ]
+	text varchar(255) [ not null ]
+	order_num smallint [ not null ]
+	created_at timestamp [ not null ]
+
+	indexes {
+		(question_id, order_num) [ name: 'unique_choice_order', unique ]
+		(question_id) [ name: 'idx_choice_question' ]
+	}
+}
+
+Table vote [headercolor: #175e7a] {
+	id uuid [ pk, unique ]
+	user_id uuid [ not null ]
+	session_id uuid [ not null ]
+	question_id int [ not null ]
+	created_at timestamp [ not null ]
+
+	indexes {
+		(user_id, question_id) [ name: 'unique_vote_per_user_question', unique ]
+		(user_id) [ name: 'idx_vote_user' ]
+		(session_id) [ name: 'idx_vote_session' ]
+		(question_id) [ name: 'idx_vote_question' ]
+	}
+}
+
+Table vote_and_choice [headercolor: #175e7a] {
+	vote_id uuid [ not null ]
+	choice_id int [ not null ]
+
+	indexes {
+		(vote_id, choice_id) [ name: 'vote_and_choice_index_12' ]
+		(vote_id) [ name: 'idx_vote_choice_vote' ]
+		(choice_id) [ name: 'idx_vote_choice_choice' ]
+	}
+}
+
+Table user_history [headercolor: #175e7a] {
+	id uuid [ pk, unique ]
+	user_id uuid [ not null ]
+	session_id uuid
+	version smallint [ not null ]
+	string_size int [ not null ]
+	receipt_data blob [ not null ]
+	checksum varchar(64) [ not null ]
+	created_at timestamp [ not null ]
+
+	indexes {
+		(user_id, session_id) [ name: 'unique_user_receipt', unique ]
+		(user_id) [ name: 'idx_user_history_user' ]
+		(session_id) [ name: 'idx_user_history_session' ]
+		(checksum) [ name: 'idx_user_history_checksum' ]
+	}
+}
+
+Table result_history [headercolor: #175e7a] {
+	id uuid [ pk, unique ]
+	session_id uuid
+	version smallint [ not null ]
+	string_size int [ not null ]
+	result_data blob [ not null ]
+	checksum varchar(64) [ not null ]
+	created_at timestamp [ not null ]
+
+	indexes {
+		(session_id) [ name: 'unique_session_result', unique ]
+		(session_id) [ name: 'idx_result_history_session' ]
+		(checksum) [ name: 'idx_result_history_checksum' ]
+	}
+}
+
+Ref fk_user_password_user_id_user {
+	user_password.user_id > user.id [ delete: no action, update: cascade ]
+}
+
+Ref fk_session_and_participant_user_id_user {
+	session_and_participant.user_id > user.id [ delete: no action, update: cascade ]
+}
+
+Ref fk_session_and_participant_session_id_vote_session {
+	session_and_participant.session_id > vote_session.id [ delete: no action, update: cascade ]
+}
+
+Ref fk_question_session_id_vote_session {
+	question.session_id > vote_session.id [ delete: no action, update: cascade ]
+}
+
+Ref fk_choice_question_id_question {
+	choice.question_id > question.id [ delete: no action, update: cascade ]
+}
+
+Ref fk_vote_user_id_user {
+	vote.user_id > user.id [ delete: no action, update: cascade ]
+}
+
+Ref fk_vote_session_id_vote_session {
+	vote.session_id > vote_session.id [ delete: no action, update: cascade ]
+}
+
+Ref fk_vote_question_id_question {
+	vote.question_id > question.id [ delete: no action, update: cascade ]
+}
+
+Ref fk_vote_and_choice_vote_id_vote {
+	vote_and_choice.vote_id > vote.id [ delete: no action, update: cascade ]
+}
+
+Ref fk_vote_and_choice_choice_id_choice {
+	vote_and_choice.choice_id > choice.id [ delete: no action, update: cascade ]
+}
+
+Ref fk_user_history_user_id_user {
+	user_history.user_id > user.id [ delete: no action, update: cascade ]
+}
+
+Ref fk_user_history_session_id_vote_session {
+	user_history.session_id > vote_session.id [ delete: no action, update: set null ]
+}
+
+Ref fk_result_history_session_id_vote_session {
+	result_history.session_id > vote_session.id [ delete: no action, update: set null ]
+}
