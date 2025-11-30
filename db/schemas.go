@@ -6,7 +6,13 @@ import (
 )
 
 func InitializeDatabaseSchemas(db *sql.DB) error {
-	_, err := db.Exec(`
+	var err error
+	_, err = db.Exec("PRAGMA foreign_keys = ON;")
+	if err != nil {
+		return fmt.Errorf("failed to enable foreign keys: %w", err)
+	}
+
+	_, err = db.Exec(`
 
 CREATE TABLE IF NOT EXISTS "user" (
     id TEXT PRIMARY KEY,
