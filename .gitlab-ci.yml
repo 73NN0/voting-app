@@ -1,0 +1,12 @@
+image: golang:1.25.4
+
+stages:
+  - test
+
+test:
+  stage: test
+  script:
+    - go test -v ./...
+  only:
+    - master
+

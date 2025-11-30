@@ -8,3 +8,6 @@
 repomix.config.json
 .repomixignore
 voting-app.json
+.gitignore
+*.md
+Makefile
