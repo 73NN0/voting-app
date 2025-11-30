@@ -480,7 +480,3 @@ func TestTimestamp_EdgeCases(t *testing.T) {
 		}
 	})
 }
-
-func TestTimeStampLossPrecision(t *testing.T) {
-
-}
