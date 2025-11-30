@@ -8,11 +8,12 @@ test:
   script:
     - go test -v -race -coverprofile=coverage.out ./...
     - go tool cover -func=coverage.out
+    - gocover-cobertura < coverage.out > coverage.xml
   coverage: '/total:\s+\(statements\)\s+(\d+\.\d+)%/'
   artifacts:
     reports:
       coverage_report:
         coverage_format: cobertura
-        path: coverage.out
+        path: coverage.xml
   only:
     - master
