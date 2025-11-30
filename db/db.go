@@ -335,3 +335,125 @@ type Choice struct {
 	OrderNum   int
 	CreatedAt  Timestamp
 }
+
+// ============= Question =============
+
+func CreateQuestion(ctx context.Context, db *sql.DB, question Question) error {
+	_, err := db.ExecContext(ctx, `
+		INSERT INTO question (session_id, text, order_num, allow_multiple, max_choices)
+		VALUES (?, ?, ?, ?, ?)
+	`, question.SessionID, question.Text, question.OrderNum, question.AllowMultiple, question.MaxChoices)
+
+	return err
+}
+
+func GetQuestions(ctx context.Context, db *sql.DB, sessionID string) ([]*Question, error) {
+	rows, err := db.QueryContext(ctx, `
+		SELECT id, session_id, text, order_num, allow_multiple, max_choices, created_at
+		FROM question
+		WHERE session_id = ?
+		ORDER BY order_num ASC
+	`, sessionID)
+
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var questions []*Question
+	for rows.Next() {
+		q := &Question{}
+		err := rows.Scan(&q.ID, &q.SessionID, &q.Text, &q.OrderNum, &q.AllowMultiple, &q.MaxChoices, &q.CreatedAt)
+		if err != nil {
+			return nil, err
+		}
+		questions = append(questions, q)
+	}
+
+	return questions, rows.Err()
+}
+
+func GetQuestionByID(ctx context.Context, db *sql.DB, id int) (*Question, error) {
+	q := &Question{}
+
+	err := db.QueryRowContext(ctx, `
+		SELECT id, session_id, text, order_num, allow_multiple, max_choices, created_at
+		FROM question
+		WHERE id = ?
+	`, id).Scan(&q.ID, &q.SessionID, &q.Text, &q.OrderNum, &q.AllowMultiple, &q.MaxChoices, &q.CreatedAt)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return q, nil
+}
+
+func DeleteQuestion(ctx context.Context, db *sql.DB, id int) error {
+	_, err := db.ExecContext(ctx, `
+		DELETE FROM question WHERE id = ?
+	`, id)
+
+	return err
+}
+
+// ============= Choice =============
+
+func CreateChoice(ctx context.Context, db *sql.DB, choice Choice) error {
+	_, err := db.ExecContext(ctx, `
+		INSERT INTO choice (question_id, text, order_num)
+		VALUES (?, ?, ?)
+	`, choice.QuestionID, choice.Text, choice.OrderNum)
+
+	return err
+}
+
+func GetChoices(ctx context.Context, db *sql.DB, questionID int) ([]*Choice, error) {
+	rows, err := db.QueryContext(ctx, `
+		SELECT id, question_id, text, order_num, created_at
+		FROM choice
+		WHERE question_id = ?
+		ORDER BY order_num ASC
+	`, questionID)
+
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var choices []*Choice
+	for rows.Next() {
+		c := &Choice{}
+		err := rows.Scan(&c.ID, &c.QuestionID, &c.Text, &c.OrderNum, &c.CreatedAt)
+		if err != nil {
+			return nil, err
+		}
+		choices = append(choices, c)
+	}
+
+	return choices, rows.Err()
+}
+
+func GetChoiceByID(ctx context.Context, db *sql.DB, id int) (*Choice, error) {
+	c := &Choice{}
+
+	err := db.QueryRowContext(ctx, `
+		SELECT id, question_id, text, order_num, created_at
+		FROM choice
+		WHERE id = ?
+	`, id).Scan(&c.ID, &c.QuestionID, &c.Text, &c.OrderNum, &c.CreatedAt)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return c, nil
+}
+
+func DeleteChoice(ctx context.Context, db *sql.DB, id int) error {
+	_, err := db.ExecContext(ctx, `
+		DELETE FROM choice WHERE id = ?
+	`, id)
+
+	return err
+}
