@@ -460,7 +460,7 @@ func TestQuestion(t *testing.T) {
 			MaxChoices:    1,
 		}
 
-		err := db.CreateQuestion(ctx, dbConn, question)
+		_, err := db.CreateQuestion(ctx, dbConn, question)
 		if err != nil {
 			t.Fatalf("failed to create question: %v", err)
 		}
@@ -500,12 +500,12 @@ func TestQuestion(t *testing.T) {
 			MaxChoices:    3,
 		}
 
-		err := db.CreateQuestion(ctx, dbConn, question2)
+		_, err := db.CreateQuestion(ctx, dbConn, question2)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		err = db.CreateQuestion(ctx, dbConn, question3)
+		_, err = db.CreateQuestion(ctx, dbConn, question3)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -557,7 +557,7 @@ func TestQuestion(t *testing.T) {
 			MaxChoices:    1,
 		}
 
-		err := db.CreateQuestion(ctx, dbConn, duplicate)
+		_, err := db.CreateQuestion(ctx, dbConn, duplicate)
 		if err == nil {
 			t.Error("expected error for duplicate order_num, got nil")
 		}
@@ -641,7 +641,7 @@ func TestChoice(t *testing.T) {
 			OrderNum:   1,
 		}
 
-		err := db.CreateChoice(ctx, dbConn, choice)
+		_, err := db.CreateChoice(ctx, dbConn, choice)
 		if err != nil {
 			t.Fatalf("failed to create choice: %v", err)
 		}
@@ -724,7 +724,7 @@ func TestChoice(t *testing.T) {
 			OrderNum:   1, // Already exists
 		}
 
-		err := db.CreateChoice(ctx, dbConn, duplicate)
+		_, err := db.CreateChoice(ctx, dbConn, duplicate)
 		if err == nil {
 			t.Error("expected error for duplicate order_num, got nil")
 		}
@@ -775,6 +775,51 @@ func TestChoice(t *testing.T) {
 		if len(choices) != 0 {
 			t.Errorf("expected 0 choices after CASCADE delete, got %d", len(choices))
 		}
+	})
+
+	t.Run("delete choice", func(t *testing.T) {
+		// Create temp question with choices
+		tempQuestion := db.Question{
+			SessionID:     session.Id.String(),
+			Text:          "Temp question",
+			OrderNum:      2,
+			AllowMultiple: false,
+			MaxChoices:    2,
+		}
+
+		questionID, err := db.CreateQuestion(ctx, dbConn, tempQuestion)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		tempChoices := []db.Choice{
+			{
+				QuestionID: questionID,
+				Text:       "Temp choice 1",
+				OrderNum:   1,
+			},
+			{
+				QuestionID: questionID,
+				Text:       "Temp choice 2",
+				OrderNum:   2,
+			},
+		}
+		var ids []int
+		for _, choice := range tempChoices {
+			if id, err := db.CreateChoice(ctx, dbConn, choice); err != nil {
+				t.Fatal(err)
+			} else {
+				ids = append(ids, id)
+			}
+		}
+
+		for _, id := range ids {
+
+			if err := db.DeleteChoice(ctx, dbConn, id); err != nil {
+				t.Fatal(err)
+			}
+		}
+
 	})
 }
 func assertStructEqual(t *testing.T, want, got interface{}) {

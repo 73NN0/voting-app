@@ -29,6 +29,11 @@ func OpenDB(name, dns string) *sql.DB {
 		panic(fmt.Sprintf("err cannot ping database server err is %q", err))
 	}
 
+	_, err = db.Exec("PRAGMA foreign_keys = ON;")
+	if err != nil {
+		panic(fmt.Sprintf("failed to enable foreign keys: %v", err))
+	}
+
 	return db
 }
 
@@ -338,13 +343,20 @@ type Choice struct {
 
 // ============= Question =============
 
-func CreateQuestion(ctx context.Context, db *sql.DB, question Question) error {
-	_, err := db.ExecContext(ctx, `
+func CreateQuestion(ctx context.Context, db *sql.DB, question Question) (questionID int, err error) {
+	result, err := db.ExecContext(ctx, `
 		INSERT INTO question (session_id, text, order_num, allow_multiple, max_choices)
 		VALUES (?, ?, ?, ?, ?)
 	`, question.SessionID, question.Text, question.OrderNum, question.AllowMultiple, question.MaxChoices)
 
-	return err
+	if err != nil {
+		return
+	}
+
+	id, err := result.LastInsertId()
+	questionID = int(id)
+
+	return
 }
 
 func GetQuestions(ctx context.Context, db *sql.DB, sessionID string) ([]*Question, error) {
@@ -399,13 +411,19 @@ func DeleteQuestion(ctx context.Context, db *sql.DB, id int) error {
 
 // ============= Choice =============
 
-func CreateChoice(ctx context.Context, db *sql.DB, choice Choice) error {
-	_, err := db.ExecContext(ctx, `
+func CreateChoice(ctx context.Context, db *sql.DB, choice Choice) (choiceID int, err error) {
+	result, err := db.ExecContext(ctx, `
 		INSERT INTO choice (question_id, text, order_num)
 		VALUES (?, ?, ?)
 	`, choice.QuestionID, choice.Text, choice.OrderNum)
 
-	return err
+	if err != nil {
+		return
+	}
+	id, err := result.LastInsertId()
+	choiceID = int(id)
+
+	return
 }
 
 func GetChoices(ctx context.Context, db *sql.DB, questionID int) ([]*Choice, error) {
