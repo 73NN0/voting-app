@@ -5,8 +5,14 @@ stages:
 
 test:
   stage: test
-  script:
-    - go test -v ./...
+    - go test -v -race -coverprofile=coverage.out ./...
+    - go tool cover -func=coverage.out
+  coverage: '/total:\s+\(statements\)\s+(\d+\.\d+)%/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.out
   only:
     - master
 
