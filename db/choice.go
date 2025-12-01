@@ -3,14 +3,37 @@ package db
 import (
 	"context"
 	"database/sql"
+
+	"gitlab.com/singfield/voting-app/entities"
 )
 
-type Choice struct {
+type choiceDB struct {
 	ID         int // AUTOINCREMENT
 	QuestionID int
 	Text       string
 	OrderNum   int
 	CreatedAt  Timestamp
+}
+
+func (c *choiceDB) toEntity() *entities.Choice {
+	return &entities.Choice{
+		ID:         c.ID,
+		QuestionID: c.QuestionID,
+		Text:       c.Text,
+		OrderNum:   c.OrderNum,
+		CreatedAt:  c.CreatedAt.Time,
+	}
+}
+
+// I don't use pointer as argument because pointer means borrowing with possibility of mutation
+func fromEntityChoice(c entities.Choice) *choiceDB {
+	return &choiceDB{
+		ID:         c.ID,
+		QuestionID: c.QuestionID,
+		Text:       c.Text,
+		OrderNum:   c.OrderNum,
+		CreatedAt:  Timestamp{c.CreatedAt},
+	}
 }
 
 type ChoiceRepository struct {
@@ -27,11 +50,14 @@ func NewChoiceRepository(db *sql.DB) *ChoiceRepository {
 	}
 }
 
-func (q *ChoiceRepository) CreateChoice(ctx context.Context, db *sql.DB, choice Choice) (choiceID int, err error) {
-	result, err := db.ExecContext(ctx, `
+func (q *ChoiceRepository) CreateChoice(ctx context.Context, choice entities.Choice) (choiceID int, err error) {
+
+	ch := fromEntityChoice(choice)
+
+	result, err := q.db.ExecContext(ctx, `
 		INSERT INTO choice (question_id, text, order_num)
 		VALUES (?, ?, ?)
-	`, choice.QuestionID, choice.Text, choice.OrderNum)
+	`, ch.QuestionID, ch.Text, ch.OrderNum)
 
 	if err != nil {
 		return
@@ -42,8 +68,8 @@ func (q *ChoiceRepository) CreateChoice(ctx context.Context, db *sql.DB, choice 
 	return
 }
 
-func (q *ChoiceRepository) GetChoices(ctx context.Context, db *sql.DB, questionID int) ([]*Choice, error) {
-	rows, err := db.QueryContext(ctx, `
+func (q *ChoiceRepository) GetChoices(ctx context.Context, questionID int) ([]*entities.Choice, error) {
+	rows, err := q.db.QueryContext(ctx, `
 		SELECT id, question_id, text, order_num, created_at
 		FROM choice
 		WHERE question_id = ?
@@ -55,23 +81,24 @@ func (q *ChoiceRepository) GetChoices(ctx context.Context, db *sql.DB, questionI
 	}
 	defer rows.Close()
 
-	var choices []*Choice
+	var choices []*entities.Choice
 	for rows.Next() {
-		c := &Choice{}
+		c := &choiceDB{}
 		err := rows.Scan(&c.ID, &c.QuestionID, &c.Text, &c.OrderNum, &c.CreatedAt)
 		if err != nil {
 			return nil, err
 		}
-		choices = append(choices, c)
+
+		choices = append(choices, c.toEntity())
 	}
 
 	return choices, rows.Err()
 }
 
-func (q *ChoiceRepository) GetChoiceByID(ctx context.Context, db *sql.DB, id int) (*Choice, error) {
-	c := &Choice{}
+func (q *ChoiceRepository) GetChoiceByID(ctx context.Context, id int) (*entities.Choice, error) {
+	c := &choiceDB{}
 
-	err := db.QueryRowContext(ctx, `
+	err := q.db.QueryRowContext(ctx, `
 		SELECT id, question_id, text, order_num, created_at
 		FROM choice
 		WHERE id = ?
@@ -81,11 +108,11 @@ func (q *ChoiceRepository) GetChoiceByID(ctx context.Context, db *sql.DB, id int
 		return nil, err
 	}
 
-	return c, nil
+	return c.toEntity(), nil
 }
 
-func (q *ChoiceRepository) DeleteChoice(ctx context.Context, db *sql.DB, id int) error {
-	_, err := db.ExecContext(ctx, `
+func (q *ChoiceRepository) DeleteChoice(ctx context.Context, id int) error {
+	_, err := q.db.ExecContext(ctx, `
 		DELETE FROM choice WHERE id = ?
 	`, id)
 

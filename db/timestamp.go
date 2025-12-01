@@ -24,9 +24,13 @@ func (t *Timestamp) Scan(value interface{}) error {
 		t.Time = time.Time{}
 		return nil
 	}
-
-	str, ok := value.(string)
-	if !ok {
+	var str string
+	switch v := value.(type) {
+	case string:
+		str = v
+	case []byte:
+		str = string(v)
+	default:
 		return fmt.Errorf("cannot scan %T into Timestamp", value)
 	}
 

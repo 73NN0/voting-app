@@ -11,3 +11,6 @@ voting-app.json
 .gitignore
 *.md
 Makefile
+*.yml
+*.dbml
+doc/

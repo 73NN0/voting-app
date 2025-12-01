@@ -1,9 +1,17 @@
+package entities
+
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
+
 type Question struct {
-	ID            int // AUTOINCREMENT
-	SessionID     string
+	ID            int
+	SessionID     uuid.UUID
 	Text          string
 	OrderNum      int
 	AllowMultiple bool
 	MaxChoices    int
-	CreatedAt     Timestamp
+	CreatedAt     time.Time
 }

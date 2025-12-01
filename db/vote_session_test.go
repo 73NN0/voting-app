@@ -6,28 +6,29 @@ import (
 
 	"github.com/google/uuid"
 	"gitlab.com/singfield/voting-app/db"
+	"gitlab.com/singfield/voting-app/entities"
 )
 
 func TestVoteSession(t *testing.T) {
 	dbConn, ctx, cleanup := setup(t, "sqlite", ":memory:")
 	defer cleanup()
-
-	session := db.Session{
+	sRepository := db.NewVoteSessionRepository(dbConn)
+	session := entities.Session{
 		Id:          uuid.New(),
 		Title:       "Ravalement 2030",
 		Description: "describing",
-		CreatedAt:   db.Timestamp{time.Now().UTC()},
-		EndsAt:      db.Timestamp{time.Date(2026, time.February, 15, 18, 0, 0, 0, time.UTC)},
+		CreatedAt:   time.Now().UTC(),
+		EndsAt:      time.Date(2026, time.February, 15, 18, 0, 0, 0, time.UTC),
 	}
 
 	t.Run("create vote session", func(t *testing.T) {
-		if err := db.CreateVoteSession(ctx, dbConn, session); err != nil {
+		if err := sRepository.CreateVoteSession(ctx, session); err != nil {
 			t.Fatal(err)
 		}
 	})
 
 	t.Run("get vote session by id", func(t *testing.T) {
-		fetched, err := db.GetVoteSessionByID(ctx, dbConn, session.Id.String())
+		fetched, err := sRepository.GetVoteSessionByID(ctx, session.Id)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -38,14 +39,14 @@ func TestVoteSession(t *testing.T) {
 		updated := session
 		updated.Title = "Ravalement 2031"
 		updated.Description = "new description"
-		updated.EndsAt = db.Timestamp{time.Date(2027, time.March, 1, 12, 0, 0, 0, time.UTC)}
+		updated.EndsAt = time.Date(2027, time.March, 1, 12, 0, 0, 0, time.UTC)
 
-		err := db.UpdateVoteSession(ctx, dbConn, updated)
+		err := sRepository.UpdateVoteSession(ctx, updated)
 		if err != nil {
 			t.Fatalf("failed to update session: %v", err)
 		}
 
-		fetched, err := db.GetVoteSessionByID(ctx, dbConn, session.Id.String())
+		fetched, err := sRepository.GetVoteSessionByID(ctx, session.Id)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -61,12 +62,12 @@ func TestVoteSession(t *testing.T) {
 	t.Run("close vote session", func(t *testing.T) {
 		beforeClose := time.Now().UTC()
 
-		err := db.CloseVoteSession(ctx, dbConn, session.Id.String())
+		err := sRepository.CloseVoteSession(ctx, session.Id)
 		if err != nil {
 			t.Fatalf("failed to close session: %v", err)
 		}
 
-		fetched, err := db.GetVoteSessionByID(ctx, dbConn, session.Id.String())
+		fetched, err := sRepository.GetVoteSessionByID(ctx, session.Id)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -77,33 +78,33 @@ func TestVoteSession(t *testing.T) {
 		}
 
 		// Should be recent (within 2 seconds)
-		if fetched.EndsAt.Before(beforeClose) || time.Since(fetched.EndsAt.Time) > 2*time.Second {
+		if fetched.EndsAt.Before(beforeClose) || time.Since(fetched.EndsAt) > 2*time.Second {
 			t.Errorf("EndsAt should be recent, got %v", fetched.EndsAt)
 		}
 	})
 
 	t.Run("list vote sessions", func(t *testing.T) {
 		// Create additional sessions
-		session2 := db.Session{
+		session2 := entities.Session{
 			Id:          uuid.New(),
 			Title:       "AG 2025",
 			Description: "Annual meeting",
-			CreatedAt:   db.Timestamp{time.Now().UTC()},
-			EndsAt:      db.Timestamp{time.Date(2025, time.December, 31, 18, 0, 0, 0, time.UTC)},
+			CreatedAt:   time.Now().UTC(),
+			EndsAt:      time.Date(2025, time.December, 31, 18, 0, 0, 0, time.UTC),
 		}
-		session3 := db.Session{
+		session3 := entities.Session{
 			Id:          uuid.New(),
 			Title:       "Budget 2026",
 			Description: "Budget vote",
-			CreatedAt:   db.Timestamp{time.Now().UTC()},
-			EndsAt:      db.Timestamp{time.Date(2026, time.January, 15, 18, 0, 0, 0, time.UTC)},
+			CreatedAt:   time.Now().UTC(),
+			EndsAt:      time.Date(2026, time.January, 15, 18, 0, 0, 0, time.UTC),
 		}
 
-		db.CreateVoteSession(ctx, dbConn, session2)
-		db.CreateVoteSession(ctx, dbConn, session3)
+		sRepository.CreateVoteSession(ctx, session2)
+		sRepository.CreateVoteSession(ctx, session3)
 
 		// List first page (2 items)
-		sessions, err := db.ListVoteSessions(ctx, dbConn, 2, 0)
+		sessions, err := sRepository.ListVoteSessions(ctx, 2, 0)
 		if err != nil {
 			t.Fatalf("failed to list sessions: %v", err)
 		}
@@ -113,7 +114,7 @@ func TestVoteSession(t *testing.T) {
 		}
 
 		// List second page (1 item)
-		sessions, err = db.ListVoteSessions(ctx, dbConn, 2, 2)
+		sessions, err = sRepository.ListVoteSessions(ctx, 2, 2)
 		if err != nil {
 			t.Fatalf("failed to list sessions (page 2): %v", err)
 		}
@@ -123,9 +124,9 @@ func TestVoteSession(t *testing.T) {
 		}
 
 		// Sessions should be ordered by created_at DESC
-		allSessions, _ := db.ListVoteSessions(ctx, dbConn, 10, 0)
+		allSessions, _ := sRepository.ListVoteSessions(ctx, 10, 0)
 		for i := 0; i < len(allSessions)-1; i++ {
-			if allSessions[i].CreatedAt.Before(allSessions[i+1].CreatedAt.Time) {
+			if allSessions[i].CreatedAt.Before(allSessions[i+1].CreatedAt) {
 				t.Error("sessions should be ordered by created_at DESC")
 			}
 		}
@@ -133,27 +134,27 @@ func TestVoteSession(t *testing.T) {
 
 	t.Run("delete vote session", func(t *testing.T) {
 		// Create a session to delete
-		toDelete := db.Session{
+		toDelete := entities.Session{
 			Id:          uuid.New(),
 			Title:       "To Delete",
 			Description: "Will be deleted",
-			CreatedAt:   db.Timestamp{time.Now().UTC()},
-			EndsAt:      db.Timestamp{time.Date(2026, time.June, 1, 0, 0, 0, 0, time.UTC)},
+			CreatedAt:   time.Now().UTC(),
+			EndsAt:      time.Date(2026, time.June, 1, 0, 0, 0, 0, time.UTC),
 		}
 
-		err := db.CreateVoteSession(ctx, dbConn, toDelete)
+		err := sRepository.CreateVoteSession(ctx, toDelete)
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		// Delete it
-		err = db.DeleteVoteSession(ctx, dbConn, toDelete.Id.String())
+		err = sRepository.DeleteVoteSession(ctx, toDelete.Id)
 		if err != nil {
 			t.Fatalf("failed to delete session: %v", err)
 		}
 
 		// Verify deletion
-		_, err = db.GetVoteSessionByID(ctx, dbConn, toDelete.Id.String())
+		_, err = sRepository.GetVoteSessionByID(ctx, toDelete.Id)
 		if err == nil {
 			t.Error("session should be deleted")
 		}
@@ -163,42 +164,43 @@ func TestVoteSession(t *testing.T) {
 func TestSessionParticipants(t *testing.T) {
 	dbConn, ctx, cleanup := setup(t, "sqlite", ":memory:")
 	defer cleanup()
-
+	uRepository := db.NewUserRepository(dbConn)
+	sRepository := db.NewVoteSessionRepository(dbConn)
 	// Create test users
-	user1 := db.User{
+	user1 := entities.User{
 		Id:    uuid.New(),
 		Name:  "Alice",
 		Email: "alice@test.com",
 		Mdp:   "password1",
 	}
-	user2 := db.User{
+	user2 := entities.User{
 		Id:    uuid.New(),
 		Name:  "Bob",
 		Email: "bob@test.com",
 		Mdp:   "password2",
 	}
 
-	db.CreateUser(ctx, dbConn, user1)
-	db.CreateUser(ctx, dbConn, user2)
+	uRepository.CreateUser(ctx, user1)
+	uRepository.CreateUser(ctx, user2)
 
 	// Create test session
-	session := db.Session{
+	session := entities.Session{
 		Id:          uuid.New(),
 		Title:       "Test Session",
 		Description: "For participants",
-		CreatedAt:   db.Timestamp{time.Now().UTC()},
-		EndsAt:      db.Timestamp{time.Date(2026, time.June, 1, 0, 0, 0, 0, time.UTC)},
+		CreatedAt:   time.Now().UTC(),
+		EndsAt:      time.Date(2026, time.June, 1, 0, 0, 0, 0, time.UTC),
 	}
-	db.CreateVoteSession(ctx, dbConn, session)
+	sRepository.CreateVoteSession(ctx, session)
 
 	t.Run("add participant", func(t *testing.T) {
-		err := db.AddParticipant(ctx, dbConn, session.Id.String(), user1.Id.String())
+		err := sRepository.AddParticipant(ctx, session.Id, user1.Id)
 		if err != nil {
 			t.Fatalf("failed to add participant: %v", err)
 		}
 
 		// Verify
-		isParticipant, err := db.IsParticipant(ctx, dbConn, session.Id.String(), user1.Id.String())
+		isParticipant, err := sRepository.IsParticipant(ctx, session.Id, user1.Id)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -209,13 +211,13 @@ func TestSessionParticipants(t *testing.T) {
 	})
 
 	t.Run("add multiple participants", func(t *testing.T) {
-		err := db.AddParticipant(ctx, dbConn, session.Id.String(), user2.Id.String())
+		err := sRepository.AddParticipant(ctx, session.Id, user2.Id)
 		if err != nil {
 			t.Fatalf("failed to add participant: %v", err)
 		}
 
 		// Get all participants
-		participants, err := db.GetParticipants(ctx, dbConn, session.Id.String())
+		participants, err := sRepository.GetParticipants(ctx, session.Id)
 		if err != nil {
 			t.Fatalf("failed to get participants: %v", err)
 		}
@@ -227,18 +229,18 @@ func TestSessionParticipants(t *testing.T) {
 
 	t.Run("get user sessions", func(t *testing.T) {
 		// Create another session for user1
-		session2 := db.Session{
+		session2 := entities.Session{
 			Id:          uuid.New(),
 			Title:       "Another Session",
 			Description: "User1 only",
-			CreatedAt:   db.Timestamp{time.Now().UTC()},
-			EndsAt:      db.Timestamp{time.Date(2026, time.July, 1, 0, 0, 0, 0, time.UTC)},
+			CreatedAt:   time.Now().UTC(),
+			EndsAt:      time.Date(2026, time.July, 1, 0, 0, 0, 0, time.UTC),
 		}
-		db.CreateVoteSession(ctx, dbConn, session2)
-		db.AddParticipant(ctx, dbConn, session2.Id.String(), user1.Id.String())
+		sRepository.CreateVoteSession(ctx, session2)
+		sRepository.AddParticipant(ctx, session2.Id, user1.Id)
 
 		// Get user1's sessions
-		sessions, err := db.GetUserVoteSessions(ctx, dbConn, user1.Id.String())
+		sessions, err := sRepository.GetUserVoteSessions(ctx, user1.Id)
 		if err != nil {
 			t.Fatalf("failed to get user sessions: %v", err)
 		}
@@ -248,7 +250,7 @@ func TestSessionParticipants(t *testing.T) {
 		}
 
 		// Get user2's sessions
-		sessions, err = db.GetUserVoteSessions(ctx, dbConn, user2.Id.String())
+		sessions, err = sRepository.GetUserVoteSessions(ctx, user2.Id)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -259,13 +261,13 @@ func TestSessionParticipants(t *testing.T) {
 	})
 
 	t.Run("remove participant", func(t *testing.T) {
-		err := db.RemoveParticipant(ctx, dbConn, session.Id.String(), user2.Id.String())
+		err := sRepository.RemoveParticipant(ctx, session.Id, user2.Id)
 		if err != nil {
 			t.Fatalf("failed to remove participant: %v", err)
 		}
 
 		// Verify removal
-		isParticipant, err := db.IsParticipant(ctx, dbConn, session.Id.String(), user2.Id.String())
+		isParticipant, err := sRepository.IsParticipant(ctx, session.Id, user2.Id)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -275,7 +277,7 @@ func TestSessionParticipants(t *testing.T) {
 		}
 
 		// user1 should still be there
-		participants, err := db.GetParticipants(ctx, dbConn, session.Id.String())
+		participants, err := sRepository.GetParticipants(ctx, session.Id)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -286,15 +288,15 @@ func TestSessionParticipants(t *testing.T) {
 	})
 
 	t.Run("is not participant", func(t *testing.T) {
-		user3 := db.User{
+		user3 := entities.User{
 			Id:    uuid.New(),
 			Name:  "Charlie",
 			Email: "charlie@test.com",
 			Mdp:   "password3",
 		}
-		db.CreateUser(ctx, dbConn, user3)
+		uRepository.CreateUser(ctx, user3)
 
-		isParticipant, err := db.IsParticipant(ctx, dbConn, session.Id.String(), user3.Id.String())
+		isParticipant, err := sRepository.IsParticipant(ctx, session.Id, user3.Id)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -306,24 +308,24 @@ func TestSessionParticipants(t *testing.T) {
 
 	t.Run("CASCADE delete session removes participants", func(t *testing.T) {
 		// Create new session with participant
-		tempSession := db.Session{
+		tempSession := entities.Session{
 			Id:          uuid.New(),
 			Title:       "Temp Session",
 			Description: "Will be deleted",
-			CreatedAt:   db.Timestamp{time.Now().UTC()},
-			EndsAt:      db.Timestamp{time.Date(2026, time.August, 1, 0, 0, 0, 0, time.UTC)},
+			CreatedAt:   time.Now().UTC(),
+			EndsAt:      time.Date(2026, time.August, 1, 0, 0, 0, 0, time.UTC),
 		}
-		db.CreateVoteSession(ctx, dbConn, tempSession)
-		db.AddParticipant(ctx, dbConn, tempSession.Id.String(), user1.Id.String())
+		sRepository.CreateVoteSession(ctx, tempSession)
+		sRepository.AddParticipant(ctx, tempSession.Id, user1.Id)
 
 		// Delete session
-		err := db.DeleteVoteSession(ctx, dbConn, tempSession.Id.String())
+		err := sRepository.DeleteVoteSession(ctx, tempSession.Id)
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		// Verify participant entry was CASCADE deleted
-		isParticipant, err := db.IsParticipant(ctx, dbConn, tempSession.Id.String(), user1.Id.String())
+		isParticipant, err := sRepository.IsParticipant(ctx, tempSession.Id, user1.Id)
 		if err != nil {
 			t.Fatal(err)
 		}

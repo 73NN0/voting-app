@@ -5,25 +5,27 @@ import (
 
 	"github.com/google/uuid"
 	"gitlab.com/singfield/voting-app/db"
+	"gitlab.com/singfield/voting-app/entities"
 )
 
 func TestUser(t *testing.T) {
 	dbConn, ctx, cleanup := setup(t, "sqlite", ":memory:")
-	user := db.User{
+	user := entities.User{
 		Id:    uuid.New(),
-		Name:  "ayden",
-		Email: "ayden@ayden.com",
+		Name:  "anon",
+		Email: "anon@anon.com",
 		Mdp:   "1234",
 	}
 
 	defer cleanup()
 
+	uRepository := db.NewUserRepository(dbConn)
 	// GIVEN : an initialised SQL database
 	// WHEN : calling CreateUser function
 	// THEN: Create a new entry in the user table with clear name and clear email adress
 	t.Run("create simple user", func(t *testing.T) {
 
-		if err := db.CreateUser(ctx, dbConn, user); err != nil {
+		if err := uRepository.CreateUser(ctx, user); err != nil {
 			t.Fatal(err)
 		}
 		var name, email, password_hash string
@@ -47,7 +49,7 @@ func TestUser(t *testing.T) {
 
 	t.Run("get user by id", func(t *testing.T) {
 
-		userQueried, err := db.GetUserByID(ctx, dbConn, user.Id.String())
+		userQueried, err := uRepository.GetUserByID(ctx, user.Id)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -56,7 +58,7 @@ func TestUser(t *testing.T) {
 	})
 
 	t.Run("get user by email", func(t *testing.T) {
-		userQueried, err := db.GetUserByEmail(ctx, dbConn, user.Email)
+		userQueried, err := uRepository.GetUserByEmail(ctx, user.Email)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -65,18 +67,18 @@ func TestUser(t *testing.T) {
 	})
 
 	t.Run("update user", func(t *testing.T) {
-		want := db.User{
+		want := entities.User{
 			Id:    user.Id,
 			Email: "tenno@tenno.com",
 			Name:  "tenno",
 			Mdp:   user.Mdp,
 		}
-		err := db.UpdateUser(ctx, dbConn, want)
+		err := uRepository.UpdateUser(ctx, want)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		userQueried, err := db.GetUserByID(ctx, dbConn, user.Id.String())
+		userQueried, err := uRepository.GetUserByID(ctx, user.Id)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -86,12 +88,12 @@ func TestUser(t *testing.T) {
 	})
 
 	t.Run("delete user", func(t *testing.T) {
-		err := db.DeleteUser(ctx, dbConn, user)
+		err := uRepository.DeleteUser(ctx, user)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		if ok, err := db.UserExists(ctx, dbConn, user.Id.String()); err != nil || ok {
+		if ok, err := uRepository.UserExists(ctx, user.Id); err != nil || ok {
 			t.Fatalf("is the user destructed ? err : %v", err)
 		}
 	})

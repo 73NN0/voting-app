@@ -1,11 +1,13 @@
 package db_test
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	"gitlab.com/singfield/voting-app/db"
+	"gitlab.com/singfield/voting-app/entities"
 )
 
 func TestChoice(t *testing.T) {
@@ -14,46 +16,49 @@ func TestChoice(t *testing.T) {
 
 	cRepository := db.NewChoiceRepository(dbConn)
 	qRepository := db.NewQuestionRepository(dbConn)
+	sRepository := db.NewVoteSessionRepository(dbConn)
+
+	fmt.Println("hello test")
 	// Setup: Create session + question
-	session := db.Session{
+	session := entities.Session{
 		Id:          uuid.New(),
 		Title:       "Test Session",
 		Description: "For choices",
-		CreatedAt:   db.Timestamp{time.Now().UTC()},
-		EndsAt:      db.Timestamp{time.Date(2026, time.June, 1, 0, 0, 0, 0, time.UTC)},
+		CreatedAt:   time.Now().UTC(),
+		EndsAt:      time.Date(2026, time.June, 1, 0, 0, 0, 0, time.UTC),
 	}
-	db.CreateVoteSession(ctx, dbConn, session)
+	sRepository.CreateVoteSession(ctx, session)
 
-	question := db.Question{
-		SessionID:     session.Id.String(),
+	question := entities.Question{
+		SessionID:     session.Id,
 		Text:          "Choose your favorite",
 		OrderNum:      1,
 		AllowMultiple: true,
 		MaxChoices:    2,
 	}
-	qRepository.CreateQuestion(ctx, dbConn, question)
+	qRepository.CreateQuestion(ctx, question)
 
 	// Get question ID
-	questions, _ := qRepository.GetQuestions(ctx, dbConn, session.Id.String())
+	questions, _ := qRepository.GetQuestions(ctx, session.Id)
 	questionID := questions[0].ID
 
 	// GIVEN: A question exists
 	// WHEN: Creating a choice
 	// THEN: Choice is stored with correct order_num
 	t.Run("create choice", func(t *testing.T) {
-		choice := db.Choice{
+		choice := entities.Choice{
 			QuestionID: questionID,
 			Text:       "Option A",
 			OrderNum:   1,
 		}
 
-		_, err := cRepository.CreateChoice(ctx, dbConn, choice)
+		_, err := cRepository.CreateChoice(ctx, choice)
 		if err != nil {
 			t.Fatalf("failed to create choice: %v", err)
 		}
 
 		// Verify
-		choices, err := cRepository.GetChoices(ctx, dbConn, questionID)
+		choices, err := cRepository.GetChoices(ctx, questionID)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -71,22 +76,22 @@ func TestChoice(t *testing.T) {
 	// WHEN: Creating multiple choices
 	// THEN: Choices are ordered by order_num
 	t.Run("create multiple choices with ordering", func(t *testing.T) {
-		choice2 := db.Choice{
+		choice2 := entities.Choice{
 			QuestionID: questionID,
 			Text:       "Option B",
 			OrderNum:   2,
 		}
 
-		choice3 := db.Choice{
+		choice3 := entities.Choice{
 			QuestionID: questionID,
 			Text:       "Option C",
 			OrderNum:   3,
 		}
 
-		cRepository.CreateChoice(ctx, dbConn, choice2)
-		cRepository.CreateChoice(ctx, dbConn, choice3)
+		cRepository.CreateChoice(ctx, choice2)
+		cRepository.CreateChoice(ctx, choice3)
 
-		choices, err := cRepository.GetChoices(ctx, dbConn, questionID)
+		choices, err := cRepository.GetChoices(ctx, questionID)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -107,10 +112,10 @@ func TestChoice(t *testing.T) {
 	// WHEN: Getting choice by ID
 	// THEN: Returns correct choice
 	t.Run("get choice by id", func(t *testing.T) {
-		choices, _ := cRepository.GetChoices(ctx, dbConn, questionID)
+		choices, _ := cRepository.GetChoices(ctx, questionID)
 		firstChoice := choices[0]
 
-		fetched, err := cRepository.GetChoiceByID(ctx, dbConn, firstChoice.ID)
+		fetched, err := cRepository.GetChoiceByID(ctx, firstChoice.ID)
 		if err != nil {
 			t.Fatalf("failed to get choice: %v", err)
 		}
@@ -124,13 +129,13 @@ func TestChoice(t *testing.T) {
 	// WHEN: Creating choice
 	// THEN: Should fail with UNIQUE constraint
 	t.Run("duplicate order_num fails", func(t *testing.T) {
-		duplicate := db.Choice{
+		duplicate := entities.Choice{
 			QuestionID: questionID,
 			Text:       "Duplicate",
 			OrderNum:   1, // Already exists
 		}
 
-		_, err := cRepository.CreateChoice(ctx, dbConn, duplicate)
+		_, err := cRepository.CreateChoice(ctx, duplicate)
 		if err == nil {
 			t.Error("expected error for duplicate order_num, got nil")
 		}
@@ -141,16 +146,16 @@ func TestChoice(t *testing.T) {
 	// THEN: Choices are deleted automatically
 	t.Run("CASCADE delete question removes choices", func(t *testing.T) {
 		// Create temp question with choices
-		tempQuestion := db.Question{
-			SessionID:     session.Id.String(),
+		tempQuestion := entities.Question{
+			SessionID:     session.Id,
 			Text:          "Temp question",
 			OrderNum:      2,
 			AllowMultiple: false,
 			MaxChoices:    1,
 		}
-		qRepository.CreateQuestion(ctx, dbConn, tempQuestion)
+		qRepository.CreateQuestion(ctx, tempQuestion)
 
-		tempQuestions, _ := qRepository.GetQuestions(ctx, dbConn, session.Id.String())
+		tempQuestions, _ := qRepository.GetQuestions(ctx, session.Id)
 		var tempQuestionID int
 		for _, q := range tempQuestions {
 			if q.Text == "Temp question" {
@@ -159,21 +164,21 @@ func TestChoice(t *testing.T) {
 			}
 		}
 
-		tempChoice := db.Choice{
+		tempChoice := entities.Choice{
 			QuestionID: tempQuestionID,
 			Text:       "Temp choice",
 			OrderNum:   1,
 		}
-		cRepository.CreateChoice(ctx, dbConn, tempChoice)
+		cRepository.CreateChoice(ctx, tempChoice)
 
 		// Delete question
-		err := qRepository.DeleteQuestion(ctx, dbConn, tempQuestionID)
+		err := qRepository.DeleteQuestion(ctx, tempQuestionID)
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		// Verify choices were CASCADE deleted
-		choices, err := cRepository.GetChoices(ctx, dbConn, tempQuestionID)
+		choices, err := cRepository.GetChoices(ctx, tempQuestionID)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -185,20 +190,20 @@ func TestChoice(t *testing.T) {
 
 	t.Run("delete choice", func(t *testing.T) {
 		// Create temp question with choices
-		tempQuestion := db.Question{
-			SessionID:     session.Id.String(),
+		tempQuestion := entities.Question{
+			SessionID:     session.Id,
 			Text:          "Temp question",
 			OrderNum:      2,
 			AllowMultiple: false,
 			MaxChoices:    2,
 		}
 
-		questionID, err := qRepository.CreateQuestion(ctx, dbConn, tempQuestion)
+		questionID, err := qRepository.CreateQuestion(ctx, tempQuestion)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		tempChoices := []db.Choice{
+		tempChoices := []entities.Choice{
 			{
 				QuestionID: questionID,
 				Text:       "Temp choice 1",
@@ -212,7 +217,7 @@ func TestChoice(t *testing.T) {
 		}
 		var ids []int
 		for _, choice := range tempChoices {
-			if id, err := cRepository.CreateChoice(ctx, dbConn, choice); err != nil {
+			if id, err := cRepository.CreateChoice(ctx, choice); err != nil {
 				t.Fatal(err)
 			} else {
 				ids = append(ids, id)
@@ -221,7 +226,7 @@ func TestChoice(t *testing.T) {
 
 		for _, id := range ids {
 
-			if err := cRepository.DeleteChoice(ctx, dbConn, id); err != nil {
+			if err := cRepository.DeleteChoice(ctx, id); err != nil {
 				t.Fatal(err)
 			}
 		}

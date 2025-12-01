@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	vdb "gitlab.com/singfield/voting-app/db"
+	"gitlab.com/singfield/voting-app/entities"
 )
 
 func TestTimestamp_Scan(t *testing.T) {
@@ -129,6 +130,7 @@ func TestTimestamp_Integration(t *testing.T) {
 		err = db.QueryRowContext(ctx, `
             SELECT created_at FROM test_Timestamps WHERE id = 1
         `).Scan(&stored)
+
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -184,30 +186,30 @@ func TestTimestamp_Integration(t *testing.T) {
 func TestSession_WithTimestamp(t *testing.T) {
 	db, ctx, cleanup := setup(t, "sqlite", ":memory:")
 	defer cleanup()
-
-	session := vdb.Session{
+	sRepository := vdb.NewVoteSessionRepository(db)
+	session := entities.Session{
 		Id:          uuid.New(),
 		Title:       "Test Session",
 		Description: "Test",
-		CreatedAt:   vdb.Timestamp{time.Now().UTC()},
-		EndsAt:      vdb.Timestamp{time.Date(2026, 2, 15, 18, 0, 0, 0, time.UTC)},
+		CreatedAt:   time.Now().UTC(),
+		EndsAt:      time.Date(2026, 2, 15, 18, 0, 0, 0, time.UTC),
 	}
 
 	// Insert
-	err := vdb.CreateVoteSession(ctx, db, session)
+	err := sRepository.CreateVoteSession(ctx, session)
 	if err != nil {
 		t.Fatalf("failed to create: %v", err)
 	}
 
 	// Retrieve
-	fetched, err := vdb.GetVoteSessionByID(ctx, db, session.Id.String())
+	fetched, err := sRepository.GetVoteSessionByID(ctx, session.Id)
 	if err != nil {
 		t.Fatalf("failed to get: %v", err)
 	}
 
 	// Compare (les timestamps devraient être identiques)
-	if !fetched.EndsAt.Time.Equal(session.EndsAt.Time) {
-		t.Errorf("EndsAt: got %v, want %v", fetched.EndsAt.Time, session.EndsAt.Time)
+	if !fetched.EndsAt.Equal(session.EndsAt) {
+		t.Errorf("EndsAt: got %v, want %v", fetched.EndsAt, session.EndsAt)
 	}
 }
 
@@ -215,26 +217,27 @@ func TestTimestamp_EdgeCases(t *testing.T) {
 	db, ctx, cleanup := setup(t, "sqlite", ":memory:")
 	defer cleanup()
 
+	sRepository := vdb.NewVoteSessionRepository(db)
 	// GIVEN: A session with zero CreatedAt (relying on DB DEFAULT)
 	// WHEN: Creating and fetching the session
 	// THEN: CreatedAt should be populated by SQLite's datetime('now')
 	//       Format: "2025-11-30 14:42:19" (SQLite default)
 	//       and be parsable by Scan()
 	t.Run("zero CreatedAt uses DB DEFAULT", func(t *testing.T) {
-		session := vdb.Session{
+		session := entities.Session{
 			Id:          uuid.New(),
 			Title:       "Test",
 			Description: "Test",
-			CreatedAt:   vdb.Timestamp{}, // Zero value - triggers DB DEFAULT
-			EndsAt:      vdb.Timestamp{time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)},
+			CreatedAt:   time.Time{}, // Zero value - triggers DB DEFAULT
+			EndsAt:      time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 		}
 
-		err := vdb.CreateVoteSession(ctx, db, session)
+		err := sRepository.CreateVoteSession(ctx, session)
 		if err != nil {
 			t.Fatalf("failed to create session: %v", err)
 		}
 
-		fetched, err := vdb.GetVoteSessionByID(ctx, db, session.Id.String())
+		fetched, err := sRepository.GetVoteSessionByID(ctx, session.Id)
 		if err != nil {
 			t.Fatalf("failed to fetch session: %v", err)
 		}
@@ -245,7 +248,7 @@ func TestTimestamp_EdgeCases(t *testing.T) {
 		}
 
 		// SUCCESS: Should be recent (within 5 seconds)
-		elapsed := time.Since(fetched.CreatedAt.Time)
+		elapsed := time.Since(fetched.CreatedAt)
 		if elapsed > 5*time.Second {
 			t.Errorf("EXPECTED: CreatedAt recent (< 5s), GOT: %v ago", elapsed)
 		}
@@ -263,26 +266,26 @@ func TestTimestamp_EdgeCases(t *testing.T) {
 		exactSecond := time.Date(2025, 11, 30, 14, 42, 19, 0, time.UTC)
 		// Represents: "2025-11-30T14:42:19Z"
 
-		session := vdb.Session{
+		session := entities.Session{
 			Id:          uuid.New(),
 			Title:       "Test",
 			Description: "Test",
-			CreatedAt:   vdb.Timestamp{exactSecond},
-			EndsAt:      vdb.Timestamp{time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)},
+			CreatedAt:   exactSecond,
+			EndsAt:      time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 		}
 
-		err := vdb.CreateVoteSession(ctx, db, session)
+		err := sRepository.CreateVoteSession(ctx, session)
 		if err != nil {
 			t.Fatalf("failed to create session: %v", err)
 		}
 
-		fetched, err := vdb.GetVoteSessionByID(ctx, db, session.Id.String())
+		fetched, err := sRepository.GetVoteSessionByID(ctx, session.Id)
 		if err != nil {
 			t.Fatalf("failed to fetch session: %v", err)
 		}
 
 		// SUCCESS: Exact match expected
-		if !fetched.CreatedAt.Equal(session.CreatedAt.Time) {
+		if !fetched.CreatedAt.Equal(session.CreatedAt) {
 			t.Errorf("EXPECTED: exact match, GOT: %v, WANT: %v",
 				fetched.CreatedAt, session.CreatedAt)
 		} else {
@@ -297,7 +300,7 @@ func TestTimestamp_EdgeCases(t *testing.T) {
 	// THEN: SQLite format "2006-01-02 15:04:05" should be parsed correctly
 	//       Scan() should handle: "2025-11-30 14:42:19" → time.Time
 	t.Run("parse SQLite DEFAULT format", func(t *testing.T) {
-		sessionID := uuid.New().String()
+		sessionID := uuid.New()
 
 		// Direct SQL insert - uses SQLite's datetime('now') format
 		_, err := db.ExecContext(ctx, `
@@ -309,7 +312,7 @@ func TestTimestamp_EdgeCases(t *testing.T) {
 		}
 
 		// Fetch and parse
-		fetched, err := vdb.GetVoteSessionByID(ctx, db, sessionID)
+		fetched, err := sRepository.GetVoteSessionByID(ctx, sessionID)
 		if err != nil {
 			t.Fatalf("failed to parse SQLite format: %v", err)
 		}
@@ -320,7 +323,7 @@ func TestTimestamp_EdgeCases(t *testing.T) {
 		}
 
 		// Should be recent
-		if time.Since(fetched.CreatedAt.Time) > 5*time.Second {
+		if time.Since(fetched.CreatedAt) > 5*time.Second {
 			t.Error("EXPECTED: recent timestamp, GOT: stale timestamp")
 		}
 
@@ -336,7 +339,7 @@ func TestTimestamp_EdgeCases(t *testing.T) {
 	//       Both → valid time.Time via Scan()
 	t.Run("compare storage formats in DB", func(t *testing.T) {
 		// Session 1: SQLite DEFAULT format
-		session1ID := uuid.New().String()
+		session1ID := uuid.New()
 		_, err := db.ExecContext(ctx, `
             INSERT INTO vote_session (id, title, description)
             VALUES (?, 'SQLite Format', 'Test')
@@ -346,14 +349,14 @@ func TestTimestamp_EdgeCases(t *testing.T) {
 		}
 
 		// Session 2: Go RFC3339 format
-		session2 := vdb.Session{
+		session2 := entities.Session{
 			Id:          uuid.New(),
 			Title:       "RFC3339 Format",
 			Description: "Test",
-			CreatedAt:   vdb.Timestamp{time.Now().UTC()},
-			EndsAt:      vdb.Timestamp{time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)},
+			CreatedAt:   time.Now().UTC(),
+			EndsAt:      time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 		}
-		err = vdb.CreateVoteSession(ctx, db, session2)
+		err = sRepository.CreateVoteSession(ctx, session2)
 		if err != nil {
 			t.Fatalf("failed to insert session2: %v", err)
 		}
@@ -386,12 +389,12 @@ func TestTimestamp_EdgeCases(t *testing.T) {
 		}
 
 		// SUCCESS: Both should be parsable by Scan()
-		fetched1, err := vdb.GetVoteSessionByID(ctx, db, session1ID)
+		fetched1, err := sRepository.GetVoteSessionByID(ctx, session1ID)
 		if err != nil {
 			t.Fatalf("EXPECTED: SQLite format parsable, GOT error: %v", err)
 		}
 
-		fetched2, err := vdb.GetVoteSessionByID(ctx, db, session2.Id.String())
+		fetched2, err := sRepository.GetVoteSessionByID(ctx, session2.Id)
 		if err != nil {
 			t.Fatalf("EXPECTED: RFC3339 format parsable, GOT error: %v", err)
 		}
@@ -409,7 +412,7 @@ func TestTimestamp_EdgeCases(t *testing.T) {
 		t.Logf("  RFC3339 format → %v", fetched2.CreatedAt)
 
 		// EXPECTED: Timestamps should be close (within 2 seconds of each other)
-		diff := fetched1.CreatedAt.Sub(fetched2.CreatedAt.Time)
+		diff := fetched1.CreatedAt.Sub(fetched2.CreatedAt)
 		if diff < 0 {
 			diff = -diff
 		}
@@ -429,15 +432,15 @@ func TestTimestamp_EdgeCases(t *testing.T) {
 		withNanos := time.Date(2025, 11, 30, 14, 42, 19, 123456789, time.UTC)
 		// Represents: "2025-11-30T14:42:19.123456789Z" (9 digits)
 
-		session := vdb.Session{
+		session := entities.Session{
 			Id:          uuid.New(),
 			Title:       "Nano Test",
 			Description: "Test",
-			CreatedAt:   vdb.Timestamp{withNanos},
-			EndsAt:      vdb.Timestamp{time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)},
+			CreatedAt:   withNanos,
+			EndsAt:      time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 		}
 
-		err := vdb.CreateVoteSession(ctx, db, session)
+		err := sRepository.CreateVoteSession(ctx, session)
 		if err != nil {
 			t.Fatalf("failed to create: %v", err)
 		}
@@ -456,7 +459,7 @@ func TestTimestamp_EdgeCases(t *testing.T) {
 		t.Logf("  If RFC3339:     expect \"2025-11-30T14:42:19Z\" (no fractional seconds)")
 		t.Logf("  If RFC3339Nano: expect \"2025-11-30T14:42:19.123456789Z\" (with .nnnnnnnnn)")
 
-		fetched, err := vdb.GetVoteSessionByID(ctx, db, session.Id.String())
+		fetched, err := sRepository.GetVoteSessionByID(ctx, session.Id)
 		if err != nil {
 			t.Fatalf("failed to fetch: %v", err)
 		}

@@ -3,7 +3,52 @@ package db
 import (
 	"context"
 	"database/sql"
+
+	"github.com/google/uuid"
+	"gitlab.com/singfield/voting-app/entities"
 )
+
+type questionDB struct {
+	ID            int
+	SessionID     string
+	Text          string
+	OrderNum      int
+	AllowMultiple int
+	MaxChoices    int
+	CreatedAt     Timestamp
+}
+
+func (q *questionDB) toEntity() *entities.Question {
+
+	return &entities.Question{
+		ID:            q.ID,
+		SessionID:     stringToUuid(q.SessionID),
+		Text:          q.Text,
+		OrderNum:      q.OrderNum,
+		AllowMultiple: q.AllowMultiple != 0,
+		MaxChoices:    q.MaxChoices,
+		CreatedAt:     q.CreatedAt.Time,
+	}
+}
+
+func fromEntityQuestion(q entities.Question) *questionDB {
+	var allowMultiple int
+	if q.AllowMultiple {
+		allowMultiple = 1
+	} else {
+		allowMultiple = 0
+	}
+
+	return &questionDB{
+		ID:            q.ID,
+		SessionID:     uuidToString(q.SessionID),
+		Text:          q.Text,
+		OrderNum:      q.OrderNum,
+		AllowMultiple: allowMultiple,
+		MaxChoices:    q.MaxChoices,
+		CreatedAt:     Timestamp{q.CreatedAt},
+	}
+}
 
 type QuestionRepository struct {
 	db *sql.DB
@@ -19,13 +64,13 @@ func NewQuestionRepository(db *sql.DB) *QuestionRepository {
 	}
 }
 
-// ============= Question =============
+func (q *QuestionRepository) CreateQuestion(ctx context.Context, question entities.Question) (questionID int, err error) {
+	qdb := fromEntityQuestion(question)
 
-func (q *QuestionRepository) CreateQuestion(ctx context.Context, db *sql.DB, question Question) (questionID int, err error) {
-	result, err := db.ExecContext(ctx, `
+	result, err := q.db.ExecContext(ctx, `
 		INSERT INTO question (session_id, text, order_num, allow_multiple, max_choices)
 		VALUES (?, ?, ?, ?, ?)
-	`, question.SessionID, question.Text, question.OrderNum, question.AllowMultiple, question.MaxChoices)
+	`, qdb.SessionID, qdb.Text, qdb.OrderNum, qdb.AllowMultiple, qdb.MaxChoices)
 
 	if err != nil {
 		return
@@ -37,36 +82,36 @@ func (q *QuestionRepository) CreateQuestion(ctx context.Context, db *sql.DB, que
 	return
 }
 
-func (q *QuestionRepository) GetQuestions(ctx context.Context, db *sql.DB, sessionID string) ([]*Question, error) {
-	rows, err := db.QueryContext(ctx, `
+func (q *QuestionRepository) GetQuestions(ctx context.Context, sessionID uuid.UUID) ([]*entities.Question, error) {
+	rows, err := q.db.QueryContext(ctx, `
 		SELECT id, session_id, text, order_num, allow_multiple, max_choices, created_at
 		FROM question
 		WHERE session_id = ?
 		ORDER BY order_num ASC
-	`, sessionID)
+	`, uuidToString(sessionID))
 
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var questions []*Question
+	var questions []*entities.Question
 	for rows.Next() {
-		q := &Question{}
+		q := &questionDB{}
 		err := rows.Scan(&q.ID, &q.SessionID, &q.Text, &q.OrderNum, &q.AllowMultiple, &q.MaxChoices, &q.CreatedAt)
 		if err != nil {
 			return nil, err
 		}
-		questions = append(questions, q)
+		questions = append(questions, q.toEntity())
 	}
 
 	return questions, rows.Err()
 }
 
-func (q *QuestionRepository) GetQuestionByID(ctx context.Context, db *sql.DB, id int) (*Question, error) {
-	question := Question{}
+func (q *QuestionRepository) GetQuestionByID(ctx context.Context, id int) (*entities.Question, error) {
+	question := questionDB{}
 
-	err := db.QueryRowContext(ctx, `
+	err := q.db.QueryRowContext(ctx, `
 		SELECT id, session_id, text, order_num, allow_multiple, max_choices, created_at
 		FROM question
 		WHERE id = ?
@@ -76,15 +121,13 @@ func (q *QuestionRepository) GetQuestionByID(ctx context.Context, db *sql.DB, id
 		return nil, err
 	}
 
-	return &question, nil
+	return question.toEntity(), nil
 }
 
-func (q *QuestionRepository) DeleteQuestion(ctx context.Context, db *sql.DB, id int) error {
-	_, err := db.ExecContext(ctx, `
+func (q *QuestionRepository) DeleteQuestion(ctx context.Context, id int) error {
+	_, err := q.db.ExecContext(ctx, `
 		DELETE FROM question WHERE id = ?
 	`, id)
 
 	return err
 }
-
-// ============= Choice =============

@@ -6,41 +6,84 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gitlab.com/singfield/voting-app/entities"
 )
 
-type Session struct {
-	Id          uuid.UUID
+type sessionDB struct {
+	Id          string
 	Title       string
 	Description string
 	CreatedAt   Timestamp
 	EndsAt      Timestamp
 }
 
-func CreateVoteSession(ctx context.Context, db *sql.DB, session Session) error {
+type VoteSessionRepository struct {
+	db *sql.DB
+}
 
-	idString := session.Id.String()
+func NewVoteSessionRepository(db *sql.DB) *VoteSessionRepository {
+	if db == nil {
+		panic("no db")
+	}
+
+	return &VoteSessionRepository{
+		db: db,
+	}
+}
+
+func (s *sessionDB) toEntity() *entities.Session {
+
+	id := stringToUuid(s.Id)
+
+	return &entities.Session{
+		Id:          id,
+		Title:       s.Title,
+		Description: s.Description,
+		CreatedAt:   s.CreatedAt.Time,
+		EndsAt:      s.EndsAt.Time,
+	}
+}
+
+func fromEntitySession(s entities.Session) *sessionDB {
+
+	id := uuidToString(s.Id)
+
+	return &sessionDB{
+		Id:          id,
+		Title:       s.Title,
+		Description: s.Description,
+		CreatedAt:   Timestamp{s.CreatedAt.UTC()},
+		EndsAt:      Timestamp{s.EndsAt.UTC()},
+	}
+}
+
+func (v *VoteSessionRepository) CreateVoteSession(ctx context.Context, session entities.Session) error {
+
+	// idString := uuidToString(session.Id)
+	// note for a test : pass Time.Time to SQL... then get back the result...
+	ss := fromEntitySession(session)
 
 	// Si CreatedAt est zero, utiliser DEFAULT
 	if session.CreatedAt.IsZero() {
-		_, err := db.ExecContext(ctx, `
+		_, err := v.db.ExecContext(ctx, `
             INSERT INTO vote_session (id, title, description, ends_at) 
             VALUES (?, ?, ?, ?)
-        `, idString, session.Title, session.Description, session.EndsAt)
+        `, ss.Id, ss.Title, ss.Description, ss.EndsAt)
 		return err
 	}
 
 	// Sinon, insérer explicitement
-	_, err := db.ExecContext(ctx, `
+	_, err := v.db.ExecContext(ctx, `
         INSERT INTO vote_session (id, title, description, created_at, ends_at) 
         VALUES (?, ?, ?, ?, ?)
-    `, idString, session.Title, session.Description, session.CreatedAt, session.EndsAt)
+    `, ss.Id, ss.Title, ss.Description, ss.CreatedAt, ss.EndsAt)
 	return err
 }
 
-func GetVoteSessionByID(ctx context.Context, db *sql.DB, id string) (*Session, error) {
-	var session Session
+func (v *VoteSessionRepository) GetVoteSessionByID(ctx context.Context, id uuid.UUID) (*entities.Session, error) {
+	var session sessionDB
 
-	err := db.QueryRowContext(ctx, `
+	err := v.db.QueryRowContext(ctx, `
         SELECT id, title, description, created_at, ends_at
         FROM vote_session WHERE id = ?
     `, id).Scan(&session.Id, &session.Title, &session.Description, &session.CreatedAt, &session.EndsAt)
@@ -49,29 +92,29 @@ func GetVoteSessionByID(ctx context.Context, db *sql.DB, id string) (*Session, e
 		return nil, err
 	}
 
-	return &session, nil
+	return session.toEntity(), nil
 }
 
 // GIVEN: A user ID
 // WHEN: Fetching all sessions the user participates in
 // THEN: Returns list of sessions with their details
-func GetUserVoteSessions(ctx context.Context, db *sql.DB, userID string) ([]*Session, error) {
-	rows, err := db.QueryContext(ctx, `
+func (v *VoteSessionRepository) GetUserVoteSessions(ctx context.Context, userID uuid.UUID) ([]*entities.Session, error) {
+	rows, err := v.db.QueryContext(ctx, `
 		SELECT vs.id, vs.title, vs.description, vs.created_at, vs.ends_at
 		FROM vote_session vs
 		INNER JOIN session_and_participant sp ON vs.id = sp.session_id
 		WHERE sp.user_id = ?
 		ORDER BY vs.created_at DESC
-	`, userID)
+	`, uuidToString(userID))
 
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var sessions []*Session
+	var sessions []*entities.Session
 	for rows.Next() {
-		session := &Session{}
+		session := &sessionDB{}
 		err := rows.Scan(
 			&session.Id,
 			&session.Title,
@@ -82,42 +125,48 @@ func GetUserVoteSessions(ctx context.Context, db *sql.DB, userID string) ([]*Ses
 		if err != nil {
 			return nil, err
 		}
-		sessions = append(sessions, session)
+		sessions = append(sessions, session.toEntity())
 	}
 
 	return sessions, rows.Err()
 }
 
-func UpdateVoteSession(ctx context.Context, db *sql.DB, session Session) error {
-	_, err := db.ExecContext(ctx, `
+func (v *VoteSessionRepository) UpdateVoteSession(ctx context.Context, session entities.Session) error {
+	s := fromEntitySession(session)
+
+	_, err := v.db.ExecContext(ctx, `
 		UPDATE vote_session
 		SET title = ?, description = ?, ends_at = ?
 		WHERE id = ?
-	`, session.Title, session.Description, session.EndsAt, session.Id.String())
+	`, s.Title, s.Description, s.EndsAt, s.Id)
 
 	return err
 }
 
-func DeleteVoteSession(ctx context.Context, db *sql.DB, sessionID string) error {
-	_, err := db.ExecContext(ctx, `
+func (v *VoteSessionRepository) DeleteVoteSession(ctx context.Context, sessionID uuid.UUID) error {
+	id := uuidToString(sessionID)
+
+	_, err := v.db.ExecContext(ctx, `
 		DELETE FROM vote_session WHERE id = ?
-	`, sessionID)
+	`, id)
 
 	return err
 }
 
-func CloseVoteSession(ctx context.Context, db *sql.DB, sessionID string) error {
-	_, err := db.ExecContext(ctx, `
+func (v *VoteSessionRepository) CloseVoteSession(ctx context.Context, sessionID uuid.UUID) error {
+	id := uuidToString(sessionID)
+	_, err := v.db.ExecContext(ctx, `
 		UPDATE vote_session
 		SET ends_at = ?
 		WHERE id = ?
-	`, Timestamp{time.Now().UTC()}, sessionID)
+	`, Timestamp{time.Now().UTC()}, id)
 
 	return err
 }
 
-func ListVoteSessions(ctx context.Context, db *sql.DB, limit, offset int) ([]*Session, error) {
-	rows, err := db.QueryContext(ctx, `
+func (v *VoteSessionRepository) ListVoteSessions(ctx context.Context, limit, offset int) ([]*entities.Session, error) {
+
+	rows, err := v.db.QueryContext(ctx, `
 		SELECT id, title, description, created_at, ends_at
 		FROM vote_session
 		ORDER BY created_at DESC
@@ -129,49 +178,56 @@ func ListVoteSessions(ctx context.Context, db *sql.DB, limit, offset int) ([]*Se
 	}
 	defer rows.Close()
 
-	var sessions []*Session
+	var sessions []*entities.Session
 	for rows.Next() {
-		session := &Session{}
+		session := &sessionDB{}
 		err := rows.Scan(&session.Id, &session.Title, &session.Description, &session.CreatedAt, &session.EndsAt)
 		if err != nil {
 			return nil, err
 		}
-		sessions = append(sessions, session)
+		sessions = append(sessions, session.toEntity())
 	}
 
 	return sessions, rows.Err()
 }
 
-func AddParticipant(ctx context.Context, db *sql.DB, sessionID, userID string) error {
-	_, err := db.ExecContext(ctx, `
+func (v *VoteSessionRepository) AddParticipant(ctx context.Context, sessionID, userID uuid.UUID) error {
+	sID := uuidToString(sessionID)
+	uID := uuidToString(userID)
+	t := Timestamp{time.Now()}
+
+	_, err := v.db.ExecContext(ctx, `
         INSERT INTO session_and_participant (user_id, session_id, invited_at)
         VALUES (?, ?, ?)
-    `, userID, sessionID, Timestamp{time.Now()})
+    `, uID, sID, t)
 
 	return err
 }
 
-func GetParticipants(ctx context.Context, db *sql.DB, sessionID string) ([]*User, error) {
-	rows, err := db.QueryContext(ctx, `
+func (v *VoteSessionRepository) GetParticipants(ctx context.Context, sessionID uuid.UUID) ([]*entities.User, error) {
+
+	sID := uuidToString(sessionID)
+
+	rows, err := v.db.QueryContext(ctx, `
         SELECT u.id, u.name, u.email
         FROM user u
         INNER JOIN session_and_participant sp ON u.id = sp.user_id
         WHERE sp.session_id = ?
-    `, sessionID)
+    `, sID)
 
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var users []*User
+	var users []*entities.User
 	for rows.Next() {
-		user := &User{}
+		user := &userDB{}
 		err := rows.Scan(&user.Id, &user.Name, &user.Email)
 		if err != nil {
 			return nil, err
 		}
-		users = append(users, user)
+		users = append(users, user.toEntity())
 	}
 
 	return users, rows.Err()
@@ -180,23 +236,27 @@ func GetParticipants(ctx context.Context, db *sql.DB, sessionID string) ([]*User
 // GIVEN: A session ID and user ID
 // WHEN: Removing user from session participants
 // THEN: User is no longer a participant
-func RemoveParticipant(ctx context.Context, db *sql.DB, sessionID, userID string) error {
-	_, err := db.ExecContext(ctx, `
+func (v *VoteSessionRepository) RemoveParticipant(ctx context.Context, sessionID, userID uuid.UUID) error {
+	_, err := v.db.ExecContext(ctx, `
 		DELETE FROM session_and_participant
 		WHERE session_id = ? AND user_id = ?
-	`, sessionID, userID)
+	`, uuidToString(sessionID), uuidToString(userID))
 
 	return err
 }
 
-func IsParticipant(ctx context.Context, db *sql.DB, sessionID, userID string) (bool, error) {
+func (v *VoteSessionRepository) IsParticipant(ctx context.Context, sessionID, userID uuid.UUID) (bool, error) {
+	sID := uuidToString(sessionID)
+	uID := uuidToString(userID)
+
 	var exists bool
-	err := db.QueryRowContext(ctx, `
+
+	err := v.db.QueryRowContext(ctx, `
         SELECT EXISTS(
             SELECT 1 FROM session_and_participant 
             WHERE session_id = ? AND user_id = ?
         )
-    `, sessionID, userID).Scan(&exists)
+    `, sID, uID).Scan(&exists)
 
 	return exists, err
 }
