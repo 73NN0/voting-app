@@ -1,0 +1,202 @@
+package db
+
+import (
+	"context"
+	"database/sql"
+	"time"
+
+	"github.com/google/uuid"
+)
+
+type Session struct {
+	Id          uuid.UUID
+	Title       string
+	Description string
+	CreatedAt   Timestamp
+	EndsAt      Timestamp
+}
+
+func CreateVoteSession(ctx context.Context, db *sql.DB, session Session) error {
+
+	idString := session.Id.String()
+
+	// Si CreatedAt est zero, utiliser DEFAULT
+	if session.CreatedAt.IsZero() {
+		_, err := db.ExecContext(ctx, `
+            INSERT INTO vote_session (id, title, description, ends_at) 
+            VALUES (?, ?, ?, ?)
+        `, idString, session.Title, session.Description, session.EndsAt)
+		return err
+	}
+
+	// Sinon, insérer explicitement
+	_, err := db.ExecContext(ctx, `
+        INSERT INTO vote_session (id, title, description, created_at, ends_at) 
+        VALUES (?, ?, ?, ?, ?)
+    `, idString, session.Title, session.Description, session.CreatedAt, session.EndsAt)
+	return err
+}
+
+func GetVoteSessionByID(ctx context.Context, db *sql.DB, id string) (*Session, error) {
+	var session Session
+
+	err := db.QueryRowContext(ctx, `
+        SELECT id, title, description, created_at, ends_at
+        FROM vote_session WHERE id = ?
+    `, id).Scan(&session.Id, &session.Title, &session.Description, &session.CreatedAt, &session.EndsAt)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &session, nil
+}
+
+// GIVEN: A user ID
+// WHEN: Fetching all sessions the user participates in
+// THEN: Returns list of sessions with their details
+func GetUserVoteSessions(ctx context.Context, db *sql.DB, userID string) ([]*Session, error) {
+	rows, err := db.QueryContext(ctx, `
+		SELECT vs.id, vs.title, vs.description, vs.created_at, vs.ends_at
+		FROM vote_session vs
+		INNER JOIN session_and_participant sp ON vs.id = sp.session_id
+		WHERE sp.user_id = ?
+		ORDER BY vs.created_at DESC
+	`, userID)
+
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var sessions []*Session
+	for rows.Next() {
+		session := &Session{}
+		err := rows.Scan(
+			&session.Id,
+			&session.Title,
+			&session.Description,
+			&session.CreatedAt,
+			&session.EndsAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		sessions = append(sessions, session)
+	}
+
+	return sessions, rows.Err()
+}
+
+func UpdateVoteSession(ctx context.Context, db *sql.DB, session Session) error {
+	_, err := db.ExecContext(ctx, `
+		UPDATE vote_session
+		SET title = ?, description = ?, ends_at = ?
+		WHERE id = ?
+	`, session.Title, session.Description, session.EndsAt, session.Id.String())
+
+	return err
+}
+
+func DeleteVoteSession(ctx context.Context, db *sql.DB, sessionID string) error {
+	_, err := db.ExecContext(ctx, `
+		DELETE FROM vote_session WHERE id = ?
+	`, sessionID)
+
+	return err
+}
+
+func CloseVoteSession(ctx context.Context, db *sql.DB, sessionID string) error {
+	_, err := db.ExecContext(ctx, `
+		UPDATE vote_session
+		SET ends_at = ?
+		WHERE id = ?
+	`, Timestamp{time.Now().UTC()}, sessionID)
+
+	return err
+}
+
+func ListVoteSessions(ctx context.Context, db *sql.DB, limit, offset int) ([]*Session, error) {
+	rows, err := db.QueryContext(ctx, `
+		SELECT id, title, description, created_at, ends_at
+		FROM vote_session
+		ORDER BY created_at DESC
+		LIMIT ? OFFSET ?
+	`, limit, offset)
+
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var sessions []*Session
+	for rows.Next() {
+		session := &Session{}
+		err := rows.Scan(&session.Id, &session.Title, &session.Description, &session.CreatedAt, &session.EndsAt)
+		if err != nil {
+			return nil, err
+		}
+		sessions = append(sessions, session)
+	}
+
+	return sessions, rows.Err()
+}
+
+func AddParticipant(ctx context.Context, db *sql.DB, sessionID, userID string) error {
+	_, err := db.ExecContext(ctx, `
+        INSERT INTO session_and_participant (user_id, session_id, invited_at)
+        VALUES (?, ?, ?)
+    `, userID, sessionID, Timestamp{time.Now()})
+
+	return err
+}
+
+func GetParticipants(ctx context.Context, db *sql.DB, sessionID string) ([]*User, error) {
+	rows, err := db.QueryContext(ctx, `
+        SELECT u.id, u.name, u.email
+        FROM user u
+        INNER JOIN session_and_participant sp ON u.id = sp.user_id
+        WHERE sp.session_id = ?
+    `, sessionID)
+
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []*User
+	for rows.Next() {
+		user := &User{}
+		err := rows.Scan(&user.Id, &user.Name, &user.Email)
+		if err != nil {
+			return nil, err
+		}
+		users = append(users, user)
+	}
+
+	return users, rows.Err()
+}
+
+// GIVEN: A session ID and user ID
+// WHEN: Removing user from session participants
+// THEN: User is no longer a participant
+func RemoveParticipant(ctx context.Context, db *sql.DB, sessionID, userID string) error {
+	_, err := db.ExecContext(ctx, `
+		DELETE FROM session_and_participant
+		WHERE session_id = ? AND user_id = ?
+	`, sessionID, userID)
+
+	return err
+}
+
+func IsParticipant(ctx context.Context, db *sql.DB, sessionID, userID string) (bool, error) {
+	var exists bool
+	err := db.QueryRowContext(ctx, `
+        SELECT EXISTS(
+            SELECT 1 FROM session_and_participant 
+            WHERE session_id = ? AND user_id = ?
+        )
+    `, sessionID, userID).Scan(&exists)
+
+	return exists, err
+}
