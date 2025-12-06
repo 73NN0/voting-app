@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	vdb "gitlab.com/singfield/voting-app/db"
+	vdb "github.com/73NN0/voting-app/db"
 )
 
 func TestTimestamp_EdgeCases_loss_precision_time(t *testing.T) {

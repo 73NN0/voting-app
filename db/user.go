@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	"gitlab.com/singfield/voting-app/entities"
+	"github.com/73NN0/voting-app/entities"
 )
 
 type UserRepository struct {

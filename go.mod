@@ -1,4 +1,4 @@
-module gitlab.com/singfield/voting-app
+module github.com/73NN0/voting-app
 
 go 1.25.4
 

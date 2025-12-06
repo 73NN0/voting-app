@@ -1,4 +1,4 @@
-package entities
+package questions
 
 import (
 	"time"

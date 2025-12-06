@@ -1,15 +1,42 @@
-package db_test
+package questions_test
 
 import (
+	"context"
+	"database/sql"
 	"fmt"
+	"reflect"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/73NN0/voting-app/db"
-	"github.com/73NN0/voting-app/entities"
 )
 
+func assertStructEqual(t *testing.T, want, got interface{}) {
+	t.Helper()
+	if !reflect.DeepEqual(want, got) {
+		t.Errorf("got %+v,\n want \n %+v \n\r", got, want)
+	}
+}
+
+type cleanupFunc func() error
+
+func setup(t *testing.T, name, dns string) (*sql.DB, context.Context, cleanupFunc) {
+	t.Helper()
+	dbConn := db.OpenDB(name, dns)
+	ctx, stop := context.WithCancel(context.Background())
+
+	if err := db.InitializeDatabaseSchemas(dbConn); err != nil {
+		t.Fatal(err)
+	}
+
+	clfn := func() error {
+		stop()
+		return dbConn.Close()
+	}
+
+	return dbConn, ctx, clfn
+}
 func TestChoice(t *testing.T) {
 	dbConn, ctx, cleanup := setup(t, "sqlite", ":memory:")
 	defer cleanup()
@@ -20,7 +47,7 @@ func TestChoice(t *testing.T) {
 
 	fmt.Println("hello test")
 	// Setup: Create session + question
-	session := entities.Session{
+	session := Session{
 		Id:          uuid.New(),
 		Title:       "Test Session",
 		Description: "For choices",
@@ -29,7 +56,7 @@ func TestChoice(t *testing.T) {
 	}
 	sRepository.CreateVoteSession(ctx, session)
 
-	question := entities.Question{
+	question := Question{
 		SessionID:     session.Id,
 		Text:          "Choose your favorite",
 		OrderNum:      1,
@@ -46,7 +73,7 @@ func TestChoice(t *testing.T) {
 	// WHEN: Creating a choice
 	// THEN: Choice is stored with correct order_num
 	t.Run("create choice", func(t *testing.T) {
-		choice := entities.Choice{
+		choice := Choice{
 			QuestionID: questionID,
 			Text:       "Option A",
 			OrderNum:   1,
@@ -76,13 +103,13 @@ func TestChoice(t *testing.T) {
 	// WHEN: Creating multiple choices
 	// THEN: Choices are ordered by order_num
 	t.Run("create multiple choices with ordering", func(t *testing.T) {
-		choice2 := entities.Choice{
+		choice2 := Choice{
 			QuestionID: questionID,
 			Text:       "Option B",
 			OrderNum:   2,
 		}
 
-		choice3 := entities.Choice{
+		choice3 := Choice{
 			QuestionID: questionID,
 			Text:       "Option C",
 			OrderNum:   3,
@@ -129,7 +156,7 @@ func TestChoice(t *testing.T) {
 	// WHEN: Creating choice
 	// THEN: Should fail with UNIQUE constraint
 	t.Run("duplicate order_num fails", func(t *testing.T) {
-		duplicate := entities.Choice{
+		duplicate := Choice{
 			QuestionID: questionID,
 			Text:       "Duplicate",
 			OrderNum:   1, // Already exists
@@ -146,7 +173,7 @@ func TestChoice(t *testing.T) {
 	// THEN: Choices are deleted automatically
 	t.Run("CASCADE delete question removes choices", func(t *testing.T) {
 		// Create temp question with choices
-		tempQuestion := entities.Question{
+		tempQuestion := Question{
 			SessionID:     session.Id,
 			Text:          "Temp question",
 			OrderNum:      2,
@@ -164,7 +191,7 @@ func TestChoice(t *testing.T) {
 			}
 		}
 
-		tempChoice := entities.Choice{
+		tempChoice := Choice{
 			QuestionID: tempQuestionID,
 			Text:       "Temp choice",
 			OrderNum:   1,
@@ -190,7 +217,7 @@ func TestChoice(t *testing.T) {
 
 	t.Run("delete choice", func(t *testing.T) {
 		// Create temp question with choices
-		tempQuestion := entities.Question{
+		tempQuestion := Question{
 			SessionID:     session.Id,
 			Text:          "Temp question",
 			OrderNum:      2,
@@ -203,7 +230,7 @@ func TestChoice(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		tempChoices := []entities.Choice{
+		tempChoices := []Choice{
 			{
 				QuestionID: questionID,
 				Text:       "Temp choice 1",

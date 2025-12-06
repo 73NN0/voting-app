@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"gitlab.com/singfield/voting-app/db"
-	"gitlab.com/singfield/voting-app/entities"
+	"github.com/73NN0/voting-app/db"
+	"github.com/73NN0/voting-app/entities"
 )
 
 func TestVoteSession(t *testing.T) {

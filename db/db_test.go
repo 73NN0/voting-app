@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	"gitlab.com/singfield/voting-app/db"
+	"github.com/73NN0/voting-app/db"
 	_ "modernc.org/sqlite"
 )
 

@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	vdb "gitlab.com/singfield/voting-app/db"
-	"gitlab.com/singfield/voting-app/entities"
+	vdb "github.com/73NN0/voting-app/db"
+	"github.com/73NN0/voting-app/entities"
 )
 
 func TestTimestamp_Scan(t *testing.T) {
