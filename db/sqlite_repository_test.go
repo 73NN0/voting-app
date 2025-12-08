@@ -1,12 +1,55 @@
 package db_test
 
 import (
+	"context"
 	"testing"
 
-	"gitlab.com/singfield/voting-app/db"
-
-	_ "modernc.org/sqlite"
+	"github.com/73NN0/voting-app/db"
 )
+
+func tableExists(t *testing.T, db db.DBRepository, name string) {
+	t.Helper()
+	var exists int
+	ctx := context.Background()
+	err := db.QueryRowContext(ctx, `
+    SELECT COUNT(*)
+	FROM sqlite_master
+	WHERE type='table' AND name=?
+	`, name).Scan(&exists)
+
+	if err != nil || exists == 0 {
+		t.Fatalf("table %s doesn't exist", name)
+	}
+}
+
+// GIVEN : SQL Schema and empty database
+// WHEN : Execute InitializeDatabaseSchemas
+// GIVEN : SQL database whith initialized tables
+func TestInitializeDatabaseSchemas(t *testing.T) {
+	database := db.NewSQLiteDBRepository()
+	defer database.OpenDB(":memory:")()
+
+	if err := database.InitializeDatabaseSchemas(); err != nil {
+		t.Fatal(err)
+	}
+
+	tables := []string{
+		"user",
+		"user_password",
+		"vote_session",
+		"session_and_participant",
+		"question",
+		"choice",
+		"vote",
+		"vote_and_choice",
+		"user_history",
+		"result_history",
+	}
+
+	for _, table := range tables {
+		tableExists(t, database, table)
+	}
+}
 
 func TestOpenDb(t *testing.T) {
 	tests := []struct {
@@ -16,15 +59,8 @@ func TestOpenDb(t *testing.T) {
 		wantErr bool
 	}{
 		{name: "happy path sqlite3",
-			dbName:  "sqlite",
 			dns:     ":memory:",
 			wantErr: false,
-		},
-		{
-			name:    "invalid driver name",
-			dbName:  "invalid_driver",
-			dns:     ":memory:",
-			wantErr: true,
 		},
 		{
 			name:    "invalid dns",
@@ -33,6 +69,8 @@ func TestOpenDb(t *testing.T) {
 			wantErr: true,
 		},
 	}
+
+	database := db.NewSQLiteDBRepository()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -43,7 +81,9 @@ func TestOpenDb(t *testing.T) {
 				}
 			}()
 
-			db := db.OpenDB(tt.dbName, tt.dns)
+			defer database.OpenDB(tt.dns)()
+
+			db := database.GetDB()
 
 			if db == nil {
 				t.Error("OpenDB() returned nil database")

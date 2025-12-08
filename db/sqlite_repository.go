@@ -1,14 +1,67 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
+
+	_ "modernc.org/sqlite"
 )
 
-func InitializeDatabaseSchemas(db *sql.DB) error {
+type SQLiteDBRepository struct {
+	db *sql.DB
+}
+
+func NewSQLiteDBRepository() *SQLiteDBRepository {
+	return &SQLiteDBRepository{}
+}
+
+func (s *SQLiteDBRepository) GetDB() *sql.DB {
+	return s.db
+}
+
+func (s *SQLiteDBRepository) ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error) {
+	return s.db.ExecContext(ctx, query, args...)
+}
+
+func (s *SQLiteDBRepository) QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row {
+	return s.db.QueryRowContext(ctx, query, args...)
+}
+
+func (s *SQLiteDBRepository) QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error) {
+	return s.db.QueryContext(ctx, query, args...)
+}
+
+// can be call with 2 pairs of brackets
+// see this trick https://blog.devtrovert.com/i/136328101/two-stage-defer
+func (s *SQLiteDBRepository) OpenDB(str string) func() {
+	db, err := sql.Open("sqlite", str)
+	if err != nil {
+		panic(fmt.Sprintf("failed to open db: %v", err))
+	}
+
+	err = db.Ping()
+	if err != nil {
+		db.Close()
+		panic(fmt.Sprintf("err cannot ping database server err is %q", err))
+	}
+
+	_, err = db.Exec("PRAGMA foreign_keys = ON;")
+	if err != nil {
+		panic(fmt.Sprintf("failed to enable foreign keys: %v", err))
+	}
+
+	s.db = db
+
+	return func() {
+		s.db.Close()
+	}
+}
+
+func (s *SQLiteDBRepository) InitializeDatabaseSchemas() error {
 	var err error
 
-	_, err = db.Exec(`
+	_, err = s.db.Exec(`
 
 CREATE TABLE IF NOT EXISTS "user" (
     id TEXT PRIMARY KEY,
