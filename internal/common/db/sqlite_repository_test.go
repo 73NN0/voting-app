@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/73NN0/voting-app/db"
+	"github.com/73NN0/voting-app/internal/common/db"
 )
 
 func tableExists(t *testing.T, db db.DBRepository, name string) {

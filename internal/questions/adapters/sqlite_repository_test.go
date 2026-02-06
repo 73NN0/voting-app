@@ -1,18 +1,20 @@
-package questions_test
+package adapters_test
 
 import (
 	"context"
 	"testing"
 
+	"github.com/73NN0/voting-app/internal/common/db"
+	"github.com/73NN0/voting-app/internal/sessions/domain/session"
+
+	"github.com/73NN0/voting-app/internal/questions/adapters"
+	"github.com/73NN0/voting-app/internal/questions/domain/choice"
+	"github.com/73NN0/voting-app/internal/questions/domain/question"
+	sessionsAdapters "github.com/73NN0/voting-app/internal/sessions/adapters"
 	"github.com/google/uuid"
-	"github.com/73NN0/voting-app/db"
-	"github.com/73NN0/voting-app/internal/questions"
-	choice "github.com/73NN0/voting-app/internal/questions/domain/choice"
-	question "github.com/73NN0/voting-app/internal/questions/domain/question"
-	"github.com/73NN0/voting-app/internal/sessions"
-	session "github.com/73NN0/voting-app/internal/sessions/domain/session"
 )
 
+// TODO rewrite All
 func TestQuestionRepository_CreateAndGet(t *testing.T) {
 	database := db.NewSQLiteDBRepository()
 	defer database.OpenDB(":memory:")()
@@ -22,8 +24,9 @@ func TestQuestionRepository_CreateAndGet(t *testing.T) {
 	}
 
 	ctx := context.Background()
-
-	sessionRepo := sessions.NewSqliteSessionRepository(database)
+	// TODO: THAT SHOULD NOT BE POSSIBLE !!!!
+	// FOR ME
+	sessionRepo := sessionsAdapters.NewSqliteSessionRepository(database)
 	s, _ := session.NewSessionNoEnd("Test Session", "Test")
 
 	err := sessionRepo.CreateVoteSession(ctx, s)
@@ -31,7 +34,7 @@ func TestQuestionRepository_CreateAndGet(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	repo := questions.NewSqliteQuestionsRepository(database)
+	repo := adapters.NewSqliteQuestionsRepository(database)
 
 	// GIVEN: Une nouvelle question du domaine
 	q, err := question.NewQuestion(
@@ -98,7 +101,7 @@ func TestQuestionRepository_GetQuestionsBySessionID(t *testing.T) {
 
 	ctx := context.Background()
 
-	repo := questions.NewSqliteQuestionsRepository(database)
+	repo := adapters.NewSqliteQuestionsRepository(database)
 
 	// GIVEN: Plusieurs questions dans une session
 	sessionID := uuid.New()
@@ -152,9 +155,9 @@ func TestChoiceRepository_CreateAndGet(t *testing.T) {
 
 	ctx := context.Background()
 
-	repo := questions.NewSqliteQuestionsRepository(database)
+	repo := adapters.NewSqliteQuestionsRepository(database)
 
-	sessionRepo := sessions.NewSqliteSessionRepository(database)
+	sessionRepo := sessionsAdapters.NewSqliteSessionRepository(database)
 	s, _ := session.NewSessionNoEnd("Test Session", "Test")
 
 	err := sessionRepo.CreateVoteSession(ctx, s)
@@ -215,10 +218,10 @@ func TestQuestionRepository_Delete(t *testing.T) {
 
 	ctx := context.Background()
 
-	repo := questions.NewSqliteQuestionsRepository(database)
+	repo := adapters.NewSqliteQuestionsRepository(database)
 
 	// GIVEN: Une question
-	sessionRepo := sessions.NewSqliteSessionRepository(database)
+	sessionRepo := sessionsAdapters.NewSqliteSessionRepository(database)
 	s, _ := session.NewSessionNoEnd("Test Session", "Test")
 
 	err := sessionRepo.CreateVoteSession(ctx, s)
@@ -252,10 +255,10 @@ func TestQuestionRepository_CascadeDelete(t *testing.T) {
 
 	ctx := context.Background()
 
-	repo := questions.NewSqliteQuestionsRepository(database)
+	repo := adapters.NewSqliteQuestionsRepository(database)
 
 	// GIVEN: Une question avec des choices
-	sessionRepo := sessions.NewSqliteSessionRepository(database)
+	sessionRepo := sessionsAdapters.NewSqliteSessionRepository(database)
 	s, _ := session.NewSessionNoEnd("Test Session", "Test")
 
 	err := sessionRepo.CreateVoteSession(ctx, s)

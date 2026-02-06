@@ -1,15 +1,15 @@
-package questions
+package adapters
 
 import (
 	"context"
 	"database/sql"
 	"fmt"
 
-	"github.com/google/uuid"
-	"github.com/73NN0/voting-app/db"
+	"github.com/73NN0/voting-app/internal/common/db"
 	choice "github.com/73NN0/voting-app/internal/questions/domain/choice"
+	"github.com/google/uuid"
 
-	question "github.com/73NN0/voting-app/internal/questions/domain/question"
+	"github.com/73NN0/voting-app/internal/questions/domain/question"
 )
 
 // ======================= DTO ==================== //

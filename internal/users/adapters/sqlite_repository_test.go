@@ -1,11 +1,11 @@
-package users_test
+package adapters_test
 
 import (
 	"context"
 	"testing"
 
-	"github.com/73NN0/voting-app/db"
-	"github.com/73NN0/voting-app/internal/users"
+	"github.com/73NN0/voting-app/internal/common/db"
+	"github.com/73NN0/voting-app/internal/users/adapters"
 	"github.com/73NN0/voting-app/internal/users/domain/user"
 )
 
@@ -28,7 +28,7 @@ func TestUserRepository_CreateAndGet(t *testing.T) {
 	database, ctx, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	repo := users.NewSqliteUserRepository(database)
+	repo := adapters.NewSqliteUserRepository(database)
 
 	// GIVEN: Un nouveau user
 	u, err := user.NewUser("Alice", "alice@example.com")
@@ -66,7 +66,7 @@ func TestUserRepository_GetByEmail(t *testing.T) {
 	database, ctx, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	repo := users.NewSqliteUserRepository(database)
+	repo := adapters.NewSqliteUserRepository(database)
 
 	// GIVEN: Un user
 	u, _ := user.NewUser("Bob", "bob@example.com")
@@ -92,7 +92,7 @@ func TestUserRepository_Update(t *testing.T) {
 	database, ctx, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	repo := users.NewSqliteUserRepository(database)
+	repo := adapters.NewSqliteUserRepository(database)
 
 	// GIVEN: Un user existant
 	u, _ := user.NewUser("Alice", "alice@example.com")
@@ -123,7 +123,7 @@ func TestUserRepository_Delete(t *testing.T) {
 	database, ctx, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	repo := users.NewSqliteUserRepository(database)
+	repo := adapters.NewSqliteUserRepository(database)
 
 	// GIVEN: Un user
 	u, _ := user.NewUser("Charlie", "charlie@example.com")
@@ -146,9 +146,9 @@ func TestUserRepository_ListUsers(t *testing.T) {
 	database, ctx, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	repo := users.NewSqliteUserRepository(database)
+	repo := adapters.NewSqliteUserRepository(database)
 
-	// GIVEN: Plusieurs users
+	// GIVEN: Plusieurs adapters
 	u1, _ := user.NewUser("Alice", "alice@example.com")
 	u2, _ := user.NewUser("Bob", "bob@example.com")
 	u3, _ := user.NewUser("Charlie", "charlie@example.com")
@@ -158,20 +158,20 @@ func TestUserRepository_ListUsers(t *testing.T) {
 	repo.CreateUser(ctx, u3)
 
 	// WHEN: On liste avec pagination
-	users, err := repo.ListUsers(ctx, 2, 0) // Limite 2
+	adapters, err := repo.ListUsers(ctx, 2, 0) // Limite 2
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// THEN: 2 users
-	if len(users) != 2 {
-		t.Fatalf("expected 2 users, got %d", len(users))
+	// THEN: 2 adapters
+	if len(adapters) != 2 {
+		t.Fatalf("expected 2 adapters, got %d", len(adapters))
 	}
 
 	// Test offset
-	users2, _ := repo.ListUsers(ctx, 2, 1)
-	if len(users2) != 2 {
-		t.Fatalf("expected 2 users with offset, got %d", len(users2))
+	adapters2, _ := repo.ListUsers(ctx, 2, 1)
+	if len(adapters2) != 2 {
+		t.Fatalf("expected 2 adapters with offset, got %d", len(adapters2))
 	}
 }
 
@@ -179,7 +179,7 @@ func TestUserRepository_UniqueEmail(t *testing.T) {
 	database, ctx, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	repo := users.NewSqliteUserRepository(database)
+	repo := adapters.NewSqliteUserRepository(database)
 
 	// GIVEN: Un user avec email
 	u1, _ := user.NewUser("Alice", "alice@example.com")
@@ -199,7 +199,7 @@ func TestUserRepository_SetPassword(t *testing.T) {
 	database, ctx, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	repo := users.NewSqliteUserRepository(database)
+	repo := adapters.NewSqliteUserRepository(database)
 
 	// GIVEN: Un user
 	u, _ := user.NewUser("Alice", "alice@example.com")
@@ -227,7 +227,7 @@ func TestUserRepository_UpdatePassword(t *testing.T) {
 	database, ctx, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	repo := users.NewSqliteUserRepository(database)
+	repo := adapters.NewSqliteUserRepository(database)
 
 	// GIVEN: User avec password
 	u, _ := user.NewUser("Alice", "alice@example.com")
@@ -259,7 +259,7 @@ func TestUserRepository_DeletePassword(t *testing.T) {
 	database, ctx, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	repo := users.NewSqliteUserRepository(database)
+	repo := adapters.NewSqliteUserRepository(database)
 
 	// GIVEN: User avec password
 	u, _ := user.NewUser("Alice", "alice@example.com")
@@ -285,7 +285,7 @@ func TestUserRepository_PasswordCascadeDelete(t *testing.T) {
 	database, ctx, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	repo := users.NewSqliteUserRepository(database)
+	repo := adapters.NewSqliteUserRepository(database)
 
 	// GIVEN: User avec password
 	u, _ := user.NewUser("Alice", "alice@example.com")

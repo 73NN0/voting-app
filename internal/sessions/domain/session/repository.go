@@ -1,10 +1,10 @@
-package sessions
+package session
 
 import (
 	"context"
 
-	"github.com/google/uuid"
 	users "github.com/73NN0/voting-app/internal/users/domain/user"
+	"github.com/google/uuid"
 )
 
 type Repository interface {

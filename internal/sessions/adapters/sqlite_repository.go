@@ -1,4 +1,4 @@
-package sessions
+package adapters
 
 import (
 	"context"
@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/73NN0/voting-app/internal/common/db"
+	"github.com/73NN0/voting-app/internal/sessions/domain/session"
+	"github.com/73NN0/voting-app/internal/users/domain/user"
 	"github.com/google/uuid"
-	"github.com/73NN0/voting-app/db"
-	session "github.com/73NN0/voting-app/internal/sessions/domain/session"
-	user "github.com/73NN0/voting-app/internal/users/domain/user"
 )
 
 // ========== DTOs ==========

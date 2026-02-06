@@ -1,13 +1,13 @@
-package users
+package adapters
 
 import (
 	"context"
 	"database/sql"
 	"fmt"
 
-	"github.com/google/uuid"
-	"github.com/73NN0/voting-app/db"
+	"github.com/73NN0/voting-app/internal/common/db"
 	"github.com/73NN0/voting-app/internal/users/domain/user"
+	"github.com/google/uuid"
 )
 
 // ========== DTOs ==========

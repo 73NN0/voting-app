@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	db "github.com/73NN0/voting-app/db"
+	"github.com/73NN0/voting-app/internal/common/db"
 	_ "modernc.org/sqlite"
 )
 
