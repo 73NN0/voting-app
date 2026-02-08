@@ -41,13 +41,13 @@ func toUserDTO(u *user.User) userDTO {
 
 // ========== Conversions DTO → Domain ==========
 
-func (dto userDTO) toDomain() (*user.User, error) {
+func (dto userDTO) toUser() (*user.User, error) {
 	id, err := uuid.Parse(dto.ID)
 	if err != nil {
 		return nil, fmt.Errorf("invalid user id: %w", err)
 	}
 
-	return user.UnmarshalUserFromRepository(
+	return user.Rehydrate(
 		id,
 		dto.Name,
 		dto.Email,
@@ -101,7 +101,7 @@ func (r *SqliteUserRepository) GetUserByID(ctx context.Context, id uuid.UUID) (*
 		return nil, fmt.Errorf("failed to query user: %w", err)
 	}
 
-	return dto.toDomain()
+	return dto.toUser()
 }
 
 func (r *SqliteUserRepository) GetUserByEmail(ctx context.Context, email string) (*user.User, error) {

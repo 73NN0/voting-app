@@ -49,30 +49,6 @@ func NewUser(name, email string) (*User, error) {
 	}, nil
 }
 
-// UnmarshalUserFromRepository reconstruit un User depuis la DB
-func UnmarshalUserFromRepository(
-	id uuid.UUID,
-	name string,
-	email string,
-	createdAt time.Time,
-) (*User, error) {
-	if id == uuid.Nil {
-		return nil, ErrInvalidUserID
-	}
-	if name == "" {
-		return nil, ErrEmptyName
-	}
-	// On ne re-valide pas l'email (confiance dans la DB)
-
-	return &User{
-		id:        id,
-		name:      name,
-		email:     email,
-		createdAt: createdAt,
-	}, nil
-}
-
-// Comportement métier
 func (u *User) UpdateName(newName string) error {
 	if newName == "" {
 		return ErrEmptyName
@@ -87,4 +63,21 @@ func (u *User) UpdateEmail(newEmail string) error {
 	}
 	u.email = newEmail
 	return nil
+}
+
+func Rehydrate(id uuid.UUID, name, email string, createdAt time.Time) (*User, error) {
+	if id == uuid.Nil {
+		return nil, ErrInvalidUserID
+	}
+
+	if name == "" {
+		return nil, ErrEmptyName
+	}
+	// Note : don't revalidate email. trust db
+	return &User{
+		id:        id,
+		name:      name,
+		email:     email,
+		createdAt: createdAt,
+	}, nil
 }

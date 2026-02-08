@@ -67,8 +67,7 @@ func NewSessionWithEnd(title, description string, endsAt time.Time) (*Session, e
 	}, nil
 }
 
-// UnmarshalSessionFromRepository reconstruit une Session depuis la DB
-func UnmarshalSessionFromRepository(
+func Rehydrate(
 	id uuid.UUID,
 	title string,
 	description string,
@@ -80,6 +79,14 @@ func UnmarshalSessionFromRepository(
 	}
 	if title == "" {
 		return nil, ErrEmptyTitle
+	}
+
+	if endsAt != nil && endsAt.Before(createdAt) {
+		return nil, errors.New("end date cannot be before creation date")
+	}
+
+	if description == "" && title != "" {
+		description = title
 	}
 
 	return &Session{

@@ -50,7 +50,7 @@ func toSessionDTO(s *session.Session) sessionDTO {
 
 // ========== Conversions DTO → Domain ==========
 
-func (dto sessionDTO) toDomain() (*session.Session, error) {
+func (dto sessionDTO) toSession() (*session.Session, error) {
 	id, err := uuid.Parse(dto.ID)
 	if err != nil {
 		return nil, fmt.Errorf("invalid session id: %w", err)
@@ -58,7 +58,7 @@ func (dto sessionDTO) toDomain() (*session.Session, error) {
 
 	// Unmarshal avec ou sans endsAt
 	if dto.EndsAt != nil {
-		return session.UnmarshalSessionFromRepository(
+		return session.Rehydrate(
 			id,
 			dto.Title,
 			dto.Description,
@@ -67,7 +67,7 @@ func (dto sessionDTO) toDomain() (*session.Session, error) {
 		)
 	}
 
-	return session.UnmarshalSessionFromRepository(
+	return session.Rehydrate(
 		id,
 		dto.Title,
 		dto.Description,
@@ -128,7 +128,7 @@ func (r *SqliteSessionRepository) GetVoteSessionByID(ctx context.Context, id uui
 		return nil, fmt.Errorf("failed to query session: %w", err)
 	}
 
-	return dto.toDomain()
+	return dto.toSession()
 }
 
 func (r *SqliteSessionRepository) GetUserVoteSessions(ctx context.Context, userID uuid.UUID) ([]*session.Session, error) {
@@ -153,7 +153,7 @@ func (r *SqliteSessionRepository) GetUserVoteSessions(ctx context.Context, userI
 			return nil, fmt.Errorf("failed to scan session: %w", err)
 		}
 
-		s, err := dto.toDomain()
+		s, err := dto.toSession()
 		if err != nil {
 			return nil, err
 		}
@@ -224,7 +224,7 @@ func (r *SqliteSessionRepository) ListVoteSessions(ctx context.Context, limit, o
 			return nil, fmt.Errorf("failed to scan session: %w", err)
 		}
 
-		s, err := dto.toDomain()
+		s, err := dto.toSession()
 		if err != nil {
 			return nil, err
 		}
@@ -279,7 +279,7 @@ func (r *SqliteSessionRepository) GetParticipants(ctx context.Context, sessionID
 
 		// TODO: Adapter selon ton domain user.User
 		// Pour l'instant je crée directement (à ajuster)
-		u, err := user.UnmarshalUserFromRepository(userID, name, email, createdAt.Time)
+		u, err := user.Rehydrate(userID, name, email, createdAt.Time)
 		if err != nil {
 			return nil, err
 		}

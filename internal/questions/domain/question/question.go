@@ -18,9 +18,10 @@ type Question struct {
 }
 
 var (
-	ErrEmptyText        = errors.New("question text cannot be empty")
-	ErrInvalidOrderNum  = errors.New("order_num must be >= 1")
-	ErrInvalidMaxChoice = errors.New("max_choices must be >= 1")
+	ErrEmptyText         = errors.New("question text cannot be empty")
+	ErrInvalidOrderNum   = errors.New("order_num must be >= 1")
+	ErrInvalidMaxChoice  = errors.New("max_choices must be >= 1")
+	ErrInvalidQuestionID = errors.New("invalid question id")
 )
 
 func (q Question) ID() int              { return q.id }
@@ -78,7 +79,7 @@ func (q *Question) ChangeOrderNum(newOrderNum int) error {
 	return nil
 }
 
-func UnmarshalQuestionFromRepository(
+func Rehydrate(
 	id int,
 	sessionID uuid.UUID,
 	text string,

@@ -31,7 +31,7 @@ func toChoiceDTO(c *choice.Choice) choiceDTO {
 	}
 }
 
-func (dto choiceDTO) toDomain() (*choice.Choice, error) {
+func (dto choiceDTO) toQuestion() (*choice.Choice, error) {
 	return choice.UnmarshalChoiceFromRepository(
 		dto.ID,
 		dto.QuestionID,
@@ -68,7 +68,7 @@ func toQuestionDTO(s *question.Question) questionDTO {
 	}
 }
 
-func (dto questionDTO) toDomain() (*question.Question, error) {
+func (dto questionDTO) toQuestion() (*question.Question, error) {
 	sessionID, err := uuid.Parse(dto.SessionID)
 	if err != nil {
 		return nil, fmt.Errorf("invalid session_id uuid: %w", err)
@@ -76,7 +76,7 @@ func (dto questionDTO) toDomain() (*question.Question, error) {
 
 	allowMultiple := dto.AllowMultiple != 0
 
-	return question.UnmarshalQuestionFromRepository(
+	return question.Rehydrate(
 		dto.ID,
 		sessionID,
 		dto.Text,
@@ -144,7 +144,7 @@ func (r *SqliteQuestionsRepository) GetQuestionByID(ctx context.Context, id int)
 		return nil, fmt.Errorf("failed to query question: %w", err)
 	}
 
-	return dto.toDomain()
+	return dto.toQuestion()
 }
 
 func (r *SqliteQuestionsRepository) GetQuestionsBySessionID(ctx context.Context, sessionID uuid.UUID) ([]*question.Question, error) {
@@ -176,7 +176,7 @@ func (r *SqliteQuestionsRepository) GetQuestionsBySessionID(ctx context.Context,
 			return nil, fmt.Errorf("failed to scan question row: %w", err)
 		}
 
-		q, err := dto.toDomain()
+		q, err := dto.toQuestion()
 		if err != nil {
 			return nil, fmt.Errorf("failed to unmarshal question: %w", err)
 		}
@@ -243,7 +243,7 @@ func (r *SqliteQuestionsRepository) GetChoiceByID(ctx context.Context, id int) (
 		return nil, fmt.Errorf("failed to query choice: %w", err)
 	}
 
-	return dto.toDomain()
+	return dto.toQuestion()
 }
 
 func (r *SqliteQuestionsRepository) GetChoicesByQuestionID(ctx context.Context, questionID int) ([]*choice.Choice, error) {
@@ -273,7 +273,7 @@ func (r *SqliteQuestionsRepository) GetChoicesByQuestionID(ctx context.Context, 
 			return nil, fmt.Errorf("failed to scan choice row: %w", err)
 		}
 
-		c, err := dto.toDomain()
+		c, err := dto.toQuestion()
 		if err != nil {
 			return nil, fmt.Errorf("failed to unmarshal choice: %w", err)
 		}
