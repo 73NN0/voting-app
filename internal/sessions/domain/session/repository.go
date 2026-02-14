@@ -3,7 +3,6 @@ package session
 import (
 	"context"
 
-	users "github.com/73NN0/voting-app/internal/users/domain/user"
 	"github.com/google/uuid"
 )
 
@@ -24,7 +23,7 @@ type Repository interface {
 
 	AddParticipant(context.Context, uuid.UUID /*session id */, uuid.UUID /* user id */) error
 
-	GetParticipants(context.Context, uuid.UUID /*session id */) ([]*users.User, error)
+	GetParticipants(context.Context, uuid.UUID /*session id */) (uuid.UUIDs /* user id */, error)
 
 	RemoveParticipant(context.Context, uuid.UUID /*session id */, uuid.UUID /*user id */) error
 

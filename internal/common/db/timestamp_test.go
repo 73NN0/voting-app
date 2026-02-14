@@ -104,29 +104,32 @@ func TestTimestamp_Value(t *testing.T) {
 }
 
 func TestTimestamp_Integration(t *testing.T) {
-	database := db.NewSQLiteDBRepository()
-	defer database.OpenDB(":memory:")()
 
-	if err := database.InitializeDatabaseSchemas(); err != nil {
+	database, cleanup, err := db.OpenSQLite(":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer cleanup()
+
+	if err := db.InitializeSchemas(database); err != nil {
 		t.Fatal(err)
 	}
 
 	ctx := context.Background()
 
-	sdb := database.GetDB()
-
 	// Test INSERT (Value() appelé)
 	t.Run("insert db.Timestamp", func(t *testing.T) {
 		now := db.Timestamp{time.Date(2024, 1, 15, 19, 5, 0, 0, time.UTC)}
 
-		_, err := sdb.ExecContext(ctx, `
+		_, err := database.ExecContext(ctx, `
             CREATE TABLE test_Timestamps (id INTEGER PRIMARY KEY, created_at TEXT)
         `)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		_, err = sdb.ExecContext(ctx, `
+		_, err = database.ExecContext(ctx, `
             INSERT INTO test_Timestamps (id, created_at) VALUES (1, ?)
         `, now)
 		if err != nil {
@@ -135,7 +138,7 @@ func TestTimestamp_Integration(t *testing.T) {
 
 		// Vérifier le stockage
 		var stored string
-		err = sdb.QueryRowContext(ctx, `
+		err = database.QueryRowContext(ctx, `
             SELECT created_at FROM test_Timestamps WHERE id = 1
         `).Scan(&stored)
 
@@ -153,7 +156,7 @@ func TestTimestamp_Integration(t *testing.T) {
 	t.Run("scan db.Timestamp", func(t *testing.T) {
 		var ts db.Timestamp
 
-		err := sdb.QueryRowContext(ctx, `
+		err := database.QueryRowContext(ctx, `
             SELECT created_at FROM test_Timestamps WHERE id = 1
         `).Scan(&ts)
 		if err != nil {
@@ -170,7 +173,7 @@ func TestTimestamp_Integration(t *testing.T) {
 	t.Run("round trip", func(t *testing.T) {
 		original := db.Timestamp{time.Now().UTC().Truncate(time.Second)}
 
-		_, err := sdb.ExecContext(ctx, `
+		_, err := database.ExecContext(ctx, `
             INSERT INTO test_Timestamps (id, created_at) VALUES (2, ?)
         `, original)
 		if err != nil {
@@ -178,7 +181,7 @@ func TestTimestamp_Integration(t *testing.T) {
 		}
 
 		var retrieved db.Timestamp
-		err = sdb.QueryRowContext(ctx, `
+		err = database.QueryRowContext(ctx, `
             SELECT created_at FROM test_Timestamps WHERE id = 2
         `).Scan(&retrieved)
 		if err != nil {

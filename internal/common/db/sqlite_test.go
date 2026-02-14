@@ -2,12 +2,13 @@ package db_test
 
 import (
 	"context"
+	"database/sql"
 	"testing"
 
 	"github.com/73NN0/voting-app/internal/common/db"
 )
 
-func tableExists(t *testing.T, db db.DBRepository, name string) {
+func assertTableExists(t *testing.T, db *sql.DB, name string) {
 	t.Helper()
 	var exists int
 	ctx := context.Background()
@@ -26,10 +27,14 @@ func tableExists(t *testing.T, db db.DBRepository, name string) {
 // WHEN : Execute InitializeDatabaseSchemas
 // GIVEN : SQL database whith initialized tables
 func TestInitializeDatabaseSchemas(t *testing.T) {
-	database := db.NewSQLiteDBRepository()
-	defer database.OpenDB(":memory:")()
+	database, cleanup, err := db.OpenSQLite(":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	if err := database.InitializeDatabaseSchemas(); err != nil {
+	defer cleanup()
+
+	if err := db.InitializeSchemas(database); err != nil {
 		t.Fatal(err)
 	}
 
@@ -47,7 +52,7 @@ func TestInitializeDatabaseSchemas(t *testing.T) {
 	}
 
 	for _, table := range tables {
-		tableExists(t, database, table)
+		assertTableExists(t, database, table)
 	}
 }
 
@@ -70,7 +75,10 @@ func TestOpenDb(t *testing.T) {
 		},
 	}
 
-	database := db.NewSQLiteDBRepository()
+	database, cleanup, err := db.OpenSQLite(":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -81,24 +89,22 @@ func TestOpenDb(t *testing.T) {
 				}
 			}()
 
-			defer database.OpenDB(tt.dns)()
+			defer cleanup()
 
-			db := database.GetDB()
-
-			if db == nil {
+			if database == nil {
 				t.Error("OpenDB() returned nil database")
 				return
 			}
 
 			// Vérifier la connexion
-			err := db.Ping()
+			err := database.Ping()
 			if err != nil {
 				t.Errorf("Failed to ping database: %v", err)
 			}
 
 			// Vérifier que foreign keys sont activées
 			var fkEnabled int
-			err = db.QueryRow("PRAGMA foreign_keys;").Scan(&fkEnabled)
+			err = database.QueryRow("PRAGMA foreign_keys;").Scan(&fkEnabled)
 			if err != nil {
 				t.Errorf("Failed to check foreign keys: %v", err)
 			}
@@ -107,7 +113,7 @@ func TestOpenDb(t *testing.T) {
 			}
 
 			// Nettoyer
-			db.Close()
+			database.Close()
 		})
 	}
 }

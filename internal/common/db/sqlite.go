@@ -1,67 +1,27 @@
 package db
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
 
 	_ "modernc.org/sqlite"
 )
 
-type SQLiteDBRepository struct {
-	db *sql.DB
-}
+// Note see trick https://blog.devtrovert.com/i/136328101/two-stage-defer
 
-func NewSQLiteDBRepository() *SQLiteDBRepository {
-	return &SQLiteDBRepository{}
-}
-
-func (s *SQLiteDBRepository) GetDB() *sql.DB {
-	return s.db
-}
-
-func (s *SQLiteDBRepository) ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error) {
-	return s.db.ExecContext(ctx, query, args...)
-}
-
-func (s *SQLiteDBRepository) QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row {
-	return s.db.QueryRowContext(ctx, query, args...)
-}
-
-func (s *SQLiteDBRepository) QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error) {
-	return s.db.QueryContext(ctx, query, args...)
-}
-
-// can be call with 2 pairs of brackets
-// see this trick https://blog.devtrovert.com/i/136328101/two-stage-defer
-func (s *SQLiteDBRepository) OpenDB(str string) func() {
-	db, err := sql.Open("sqlite", str)
+func OpenSQLite(dsn string) (*sql.DB, func(), error) {
+	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
-		panic(fmt.Sprintf("failed to open db: %v", err))
+		return nil, nil, err
 	}
-
-	err = db.Ping()
-	if err != nil {
-		db.Close()
-		panic(fmt.Sprintf("err cannot ping database server err is %q", err))
-	}
-
-	_, err = db.Exec("PRAGMA foreign_keys = ON;")
-	if err != nil {
-		panic(fmt.Sprintf("failed to enable foreign keys: %v", err))
-	}
-
-	s.db = db
-
-	return func() {
-		s.db.Close()
-	}
+	cleanup := func() { db.Close() }
+	return db, cleanup, nil
 }
 
-func (s *SQLiteDBRepository) InitializeDatabaseSchemas() error {
+func InitializeSchemas(db *sql.DB) error {
 	var err error
 
-	_, err = s.db.Exec(`
+	_, err = db.Exec(`
 
 CREATE TABLE IF NOT EXISTS "user" (
     id TEXT PRIMARY KEY,
@@ -115,10 +75,7 @@ CREATE TABLE IF NOT EXISTS question (
     max_choices INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     
-    UNIQUE (session_id, order_num),
-    
-    FOREIGN KEY (session_id) REFERENCES vote_session(id) 
-        ON DELETE CASCADE
+    UNIQUE (session_id, order_num)
 );
 
 CREATE INDEX IF NOT EXISTS idx_question_session ON question(session_id);

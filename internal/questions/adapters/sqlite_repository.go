@@ -88,10 +88,10 @@ func (dto questionDTO) toQuestion() (*question.Question, error) {
 }
 
 type SqliteQuestionsRepository struct {
-	dbRepo db.DBRepository
+	dbRepo *sql.DB
 }
 
-func NewSqliteQuestionsRepository(dbrepo db.DBRepository) *SqliteQuestionsRepository {
+func NewSqliteQuestionsRepository(dbrepo *sql.DB) *SqliteQuestionsRepository {
 
 	return &SqliteQuestionsRepository{dbRepo: dbrepo}
 }

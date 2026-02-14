@@ -16,10 +16,15 @@ import (
 
 // TODO rewrite All
 func TestQuestionRepository_CreateAndGet(t *testing.T) {
-	database := db.NewSQLiteDBRepository()
-	defer database.OpenDB(":memory:")()
 
-	if err := database.InitializeDatabaseSchemas(); err != nil {
+	database, cleanup, err := db.OpenSQLite(":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer cleanup()
+
+	if err := db.InitializeSchemas(database); err != nil {
 		t.Fatal(err)
 	}
 
@@ -29,7 +34,7 @@ func TestQuestionRepository_CreateAndGet(t *testing.T) {
 	sessionRepo := sessionsAdapters.NewSqliteSessionRepository(database)
 	s, _ := session.NewSessionNoEnd("Test Session", "Test")
 
-	err := sessionRepo.CreateVoteSession(ctx, s)
+	err = sessionRepo.CreateVoteSession(ctx, s)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -92,10 +97,14 @@ func TestQuestionRepository_CreateAndGet(t *testing.T) {
 }
 
 func TestQuestionRepository_GetQuestionsBySessionID(t *testing.T) {
-	database := db.NewSQLiteDBRepository()
-	defer database.OpenDB(":memory:")()
+	database, cleanup, err := db.OpenSQLite(":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	if err := database.InitializeDatabaseSchemas(); err != nil {
+	defer cleanup()
+
+	if err := db.InitializeSchemas(database); err != nil {
 		t.Fatal(err)
 	}
 
@@ -146,10 +155,14 @@ func TestQuestionRepository_GetQuestionsBySessionID(t *testing.T) {
 }
 
 func TestChoiceRepository_CreateAndGet(t *testing.T) {
-	database := db.NewSQLiteDBRepository()
-	defer database.OpenDB(":memory:")()
+	database, cleanup, err := db.OpenSQLite(":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	if err := database.InitializeDatabaseSchemas(); err != nil {
+	defer cleanup()
+
+	if err := db.InitializeSchemas(database); err != nil {
 		t.Fatal(err)
 	}
 
@@ -160,7 +173,7 @@ func TestChoiceRepository_CreateAndGet(t *testing.T) {
 	sessionRepo := sessionsAdapters.NewSqliteSessionRepository(database)
 	s, _ := session.NewSessionNoEnd("Test Session", "Test")
 
-	err := sessionRepo.CreateVoteSession(ctx, s)
+	err = sessionRepo.CreateVoteSession(ctx, s)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -209,10 +222,14 @@ func TestChoiceRepository_CreateAndGet(t *testing.T) {
 }
 
 func TestQuestionRepository_Delete(t *testing.T) {
-	database := db.NewSQLiteDBRepository()
-	defer database.OpenDB(":memory:")()
+	database, cleanup, err := db.OpenSQLite(":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	if err := database.InitializeDatabaseSchemas(); err != nil {
+	defer cleanup()
+
+	if err := db.InitializeSchemas(database); err != nil {
 		t.Fatal(err)
 	}
 
@@ -224,7 +241,7 @@ func TestQuestionRepository_Delete(t *testing.T) {
 	sessionRepo := sessionsAdapters.NewSqliteSessionRepository(database)
 	s, _ := session.NewSessionNoEnd("Test Session", "Test")
 
-	err := sessionRepo.CreateVoteSession(ctx, s)
+	err = sessionRepo.CreateVoteSession(ctx, s)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -246,10 +263,14 @@ func TestQuestionRepository_Delete(t *testing.T) {
 }
 
 func TestQuestionRepository_CascadeDelete(t *testing.T) {
-	database := db.NewSQLiteDBRepository()
-	defer database.OpenDB(":memory:")()
+	database, cleanup, err := db.OpenSQLite(":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	if err := database.InitializeDatabaseSchemas(); err != nil {
+	defer cleanup()
+
+	if err := db.InitializeSchemas(database); err != nil {
 		t.Fatal(err)
 	}
 
@@ -261,11 +282,11 @@ func TestQuestionRepository_CascadeDelete(t *testing.T) {
 	sessionRepo := sessionsAdapters.NewSqliteSessionRepository(database)
 	s, _ := session.NewSessionNoEnd("Test Session", "Test")
 
-	err := sessionRepo.CreateVoteSession(ctx, s)
+	err = sessionRepo.CreateVoteSession(ctx, s)
 	if err != nil {
 		t.Fatal(err)
 	}
-	q, _ := question.NewQuestion(s.ID(), "Question", 1, 1, false)
+	q, _ := question.NewQuestion(uuid.New(), "Question", 1, 1, false)
 	questionID, _ := repo.CreateQuestion(ctx, &q)
 
 	choice1 := choice.NewChoice(questionID, 1, "Choice 1")

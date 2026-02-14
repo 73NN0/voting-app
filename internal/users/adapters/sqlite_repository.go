@@ -120,7 +120,7 @@ func (r *SqliteUserRepository) GetUserByEmail(ctx context.Context, email string)
 		return nil, fmt.Errorf("failed to query user: %w", err)
 	}
 
-	return dto.toDomain()
+	return dto.toUser()
 }
 
 func (r *SqliteUserRepository) UpdateUser(ctx context.Context, u *user.User) error {
@@ -168,7 +168,7 @@ func (r *SqliteUserRepository) ListUsers(ctx context.Context, limit, offset int)
 			return nil, fmt.Errorf("failed to scan user: %w", err)
 		}
 
-		u, err := dto.toDomain()
+		u, err := dto.toUser()
 		if err != nil {
 			return nil, err
 		}

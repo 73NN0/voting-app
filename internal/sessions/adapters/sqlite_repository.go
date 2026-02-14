@@ -79,14 +79,14 @@ func (dto sessionDTO) toSession() (*session.Session, error) {
 // ========== Repository Implementation ==========
 
 type SqliteSessionRepository struct {
-	db db.DBRepository
+	db *sql.DB
 }
 
 // Compile-time check
 var _ session.Repository = (*SqliteSessionRepository)(nil)
 
-func NewSqliteSessionRepository(database db.DBRepository) *SqliteSessionRepository {
-	return &SqliteSessionRepository{db: database}
+func NewSqliteSessionRepository(db *sql.DB) *SqliteSessionRepository {
+	return &SqliteSessionRepository{db: db}
 }
 
 // ===== Session CRUD =====
@@ -123,7 +123,7 @@ func (r *SqliteSessionRepository) GetVoteSessionByID(ctx context.Context, id uui
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("session %s not found", id)
+			return nil, session.ErrNotFound
 		}
 		return nil, fmt.Errorf("failed to query session: %w", err)
 	}
@@ -251,7 +251,7 @@ func (r *SqliteSessionRepository) AddParticipant(ctx context.Context, sessionID,
 	return nil
 }
 
-func (r *SqliteSessionRepository) GetParticipants(ctx context.Context, sessionID uuid.UUID) ([]*user.User, error) {
+func (r *SqliteSessionRepository) GetParticipants(ctx context.Context, sessionID uuid.UUID) (uuid.UUIDs, error) {
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT u.id, u.name, u.email, u.created_at
 		FROM "user" u
@@ -265,7 +265,7 @@ func (r *SqliteSessionRepository) GetParticipants(ctx context.Context, sessionID
 	}
 	defer rows.Close()
 
-	var users []*user.User
+	var users uuid.UUIDs
 	for rows.Next() {
 		var id, name, email string
 		var createdAt db.Timestamp
@@ -284,7 +284,7 @@ func (r *SqliteSessionRepository) GetParticipants(ctx context.Context, sessionID
 			return nil, err
 		}
 
-		users = append(users, u)
+		users = append(users, u.ID())
 	}
 
 	return users, rows.Err()

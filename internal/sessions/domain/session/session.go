@@ -17,6 +17,7 @@ type Session struct {
 }
 
 var (
+	ErrNotFound         = errors.New("session not found")
 	ErrEmptyTitle       = errors.New("session title cannot be empty")
 	ErrInvalidSessionID = errors.New("invalid session id")
 )
