@@ -64,7 +64,11 @@ func (s *Service) CreateQuestion(ctx context.Context, sessionID uuid.UUID, text 
 	return s.questions.CreateQuestion(ctx, q)
 }
 
-func (s *Service) ListQuestionsBySessionID(ctx context.Context, sessionID uuid.UUID) ([]*question.Question, error) {
+func (s *Service) GetQuestionByID(ctx context.Context, questionID int) (question.Question, error) {
+	return s.questions.GetQuestionByID(ctx, questionID)
+}
+
+func (s *Service) ListQuestionsBySessionID(ctx context.Context, sessionID uuid.UUID) ([]question.Question, error) {
 	return s.questions.GetQuestionsBySessionID(ctx, sessionID)
 }
 
@@ -83,7 +87,7 @@ func (s *Service) CreateChoice(ctx context.Context, questionID int, orderNum int
 	return s.choices.CreateChoice(ctx, c)
 }
 
-func (s *Service) ListChoicesByQuestionID(ctx context.Context, questionID int) ([]*choice.Choice, error) {
+func (s *Service) ListChoicesByQuestionID(ctx context.Context, questionID int) ([]choice.Choice, error) {
 	return s.choices.GetChoicesByQuestionID(ctx, questionID)
 }
 

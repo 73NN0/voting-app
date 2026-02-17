@@ -58,13 +58,13 @@ func (dto userDTO) toUser() (*user.User, error) {
 // ========== Repository Implementation ==========
 
 type SqliteUserRepository struct {
-	db db.DBRepository
+	db *sql.DB
 }
 
 // Compile-time check
 var _ user.Repository = (*SqliteUserRepository)(nil)
 
-func NewSqliteUserRepository(database db.DBRepository) *SqliteUserRepository {
+func NewSqliteUserRepository(database *sql.DB) *SqliteUserRepository {
 	return &SqliteUserRepository{db: database}
 }
 

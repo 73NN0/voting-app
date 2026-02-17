@@ -9,24 +9,19 @@ import (
 	"github.com/73NN0/voting-app/internal/users/domain/user"
 )
 
-func setupTestDB(t *testing.T) (db.DBRepository, context.Context, func()) {
-	t.Helper()
+func TestUserRepository_CreateAndGet(t *testing.T) {
 
-	database := db.NewSQLiteDBRepository()
-	cleanup := database.OpenDB(":memory:")
-
-	if err := database.InitializeDatabaseSchemas(); err != nil {
+	database, cleanup, err := db.OpenSQLite(":memory:")
+	if err != nil {
 		t.Fatal(err)
 	}
 
-	ctx := context.Background()
-
-	return database, ctx, cleanup
-}
-
-func TestUserRepository_CreateAndGet(t *testing.T) {
-	database, ctx, cleanup := setupTestDB(t)
 	defer cleanup()
+
+	if err := db.InitializeSchemas(database); err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
 
 	repo := adapters.NewSqliteUserRepository(database)
 
@@ -63,8 +58,18 @@ func TestUserRepository_CreateAndGet(t *testing.T) {
 }
 
 func TestUserRepository_GetByEmail(t *testing.T) {
-	database, ctx, cleanup := setupTestDB(t)
+
+	database, cleanup, err := db.OpenSQLite(":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	defer cleanup()
+
+	if err := db.InitializeSchemas(database); err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
 
 	repo := adapters.NewSqliteUserRepository(database)
 
@@ -89,8 +94,17 @@ func TestUserRepository_GetByEmail(t *testing.T) {
 }
 
 func TestUserRepository_Update(t *testing.T) {
-	database, ctx, cleanup := setupTestDB(t)
+	database, cleanup, err := db.OpenSQLite(":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	defer cleanup()
+
+	if err := db.InitializeSchemas(database); err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
 
 	repo := adapters.NewSqliteUserRepository(database)
 
@@ -102,8 +116,7 @@ func TestUserRepository_Update(t *testing.T) {
 	u.UpdateName("Alice Smith")
 	u.UpdateEmail("alice.smith@example.com")
 
-	err := repo.UpdateUser(ctx, u)
-	if err != nil {
+	if err := repo.UpdateUser(ctx, u); err != nil {
 		t.Fatal(err)
 	}
 
@@ -120,8 +133,17 @@ func TestUserRepository_Update(t *testing.T) {
 }
 
 func TestUserRepository_Delete(t *testing.T) {
-	database, ctx, cleanup := setupTestDB(t)
+	database, cleanup, err := db.OpenSQLite(":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	defer cleanup()
+
+	if err := db.InitializeSchemas(database); err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
 
 	repo := adapters.NewSqliteUserRepository(database)
 
@@ -130,8 +152,7 @@ func TestUserRepository_Delete(t *testing.T) {
 	repo.CreateUser(ctx, u)
 
 	// WHEN: On le supprime
-	err := repo.DeleteUser(ctx, u.ID())
-	if err != nil {
+	if err := repo.DeleteUser(ctx, u.ID()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -143,8 +164,17 @@ func TestUserRepository_Delete(t *testing.T) {
 }
 
 func TestUserRepository_ListUsers(t *testing.T) {
-	database, ctx, cleanup := setupTestDB(t)
+	database, cleanup, err := db.OpenSQLite(":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	defer cleanup()
+
+	if err := db.InitializeSchemas(database); err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
 
 	repo := adapters.NewSqliteUserRepository(database)
 
@@ -176,8 +206,17 @@ func TestUserRepository_ListUsers(t *testing.T) {
 }
 
 func TestUserRepository_UniqueEmail(t *testing.T) {
-	database, ctx, cleanup := setupTestDB(t)
+	database, cleanup, err := db.OpenSQLite(":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	defer cleanup()
+
+	if err := db.InitializeSchemas(database); err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
 
 	repo := adapters.NewSqliteUserRepository(database)
 
@@ -187,17 +226,25 @@ func TestUserRepository_UniqueEmail(t *testing.T) {
 
 	// WHEN: On essaie de créer un autre user avec le même email
 	u2, _ := user.NewUser("Bob", "alice@example.com")
-	err := repo.CreateUser(ctx, u2)
-
-	// THEN: Erreur (UNIQUE constraint)
-	if err == nil {
+	if err := repo.CreateUser(ctx, u2); err == nil {
+		// THEN: Erreur (UNIQUE constraint)
 		t.Error("expected error for duplicate email")
 	}
+
 }
 
 func TestUserRepository_SetPassword(t *testing.T) {
-	database, ctx, cleanup := setupTestDB(t)
+	database, cleanup, err := db.OpenSQLite(":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	defer cleanup()
+
+	if err := db.InitializeSchemas(database); err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
 
 	repo := adapters.NewSqliteUserRepository(database)
 
@@ -207,8 +254,7 @@ func TestUserRepository_SetPassword(t *testing.T) {
 
 	// WHEN: On set un password
 	passwordHash := "$2a$10$hashedpassword"
-	err := repo.SetPassword(ctx, u.ID(), passwordHash)
-	if err != nil {
+	if err := repo.SetPassword(ctx, u.ID(), passwordHash); err != nil {
 		t.Fatal(err)
 	}
 
@@ -224,8 +270,17 @@ func TestUserRepository_SetPassword(t *testing.T) {
 }
 
 func TestUserRepository_UpdatePassword(t *testing.T) {
-	database, ctx, cleanup := setupTestDB(t)
+	database, cleanup, err := db.OpenSQLite(":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	defer cleanup()
+
+	if err := db.InitializeSchemas(database); err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
 
 	repo := adapters.NewSqliteUserRepository(database)
 
@@ -238,8 +293,7 @@ func TestUserRepository_UpdatePassword(t *testing.T) {
 
 	// WHEN: On update le password
 	newHash := "$2a$10$newpassword"
-	err := repo.SetPassword(ctx, u.ID(), newHash)
-	if err != nil {
+	if err := repo.SetPassword(ctx, u.ID(), newHash); err != nil {
 		t.Fatal(err)
 	}
 
@@ -256,8 +310,17 @@ func TestUserRepository_UpdatePassword(t *testing.T) {
 }
 
 func TestUserRepository_DeletePassword(t *testing.T) {
-	database, ctx, cleanup := setupTestDB(t)
+	database, cleanup, err := db.OpenSQLite(":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	defer cleanup()
+
+	if err := db.InitializeSchemas(database); err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
 
 	repo := adapters.NewSqliteUserRepository(database)
 
@@ -269,8 +332,7 @@ func TestUserRepository_DeletePassword(t *testing.T) {
 	repo.SetPassword(ctx, u.ID(), passwordHash)
 
 	// WHEN: On supprime le password
-	err := repo.DeletePassword(ctx, u.ID())
-	if err != nil {
+	if err = repo.DeletePassword(ctx, u.ID()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -282,8 +344,17 @@ func TestUserRepository_DeletePassword(t *testing.T) {
 }
 
 func TestUserRepository_PasswordCascadeDelete(t *testing.T) {
-	database, ctx, cleanup := setupTestDB(t)
+	database, cleanup, err := db.OpenSQLite(":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	defer cleanup()
+
+	if err := db.InitializeSchemas(database); err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
 
 	repo := adapters.NewSqliteUserRepository(database)
 
@@ -295,8 +366,7 @@ func TestUserRepository_PasswordCascadeDelete(t *testing.T) {
 	repo.SetPassword(ctx, u.ID(), passwordHash)
 
 	// WHEN: On supprime le user
-	err := repo.DeleteUser(ctx, u.ID())
-	if err != nil {
+	if err := repo.DeleteUser(ctx, u.ID()); err != nil {
 		t.Fatal(err)
 	}
 

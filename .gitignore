@@ -1,2 +1,5 @@
 voting-app.json
 .DS_Store
+bin/
+voting.db
+doc/

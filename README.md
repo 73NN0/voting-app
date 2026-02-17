@@ -3,7 +3,7 @@
 
 Just a project to revise many lecons and resources about Go, event-driven, DDD etc... 
 
-It aim to be a voting application... one day lol.
+It aim to be a voting server... one day lol.
 
 I progressively apply advice from resources like :
 

@@ -47,7 +47,7 @@ func NewChoiceWithID(id, questionID, orderNum int, text string) Choice {
 	}
 }
 
-func UnmarshalChoiceFromRepository(
+func Rehydrate(
 	id int,
 	questionID int,
 	text string,
