@@ -120,3 +120,28 @@ func (s *Service) ListChoicesByQuestionID(ctx context.Context, questionID int) (
 func (s *Service) DeleteChoice(ctx context.Context, choiceID int) error {
 	return s.choices.DeleteChoice(ctx, choiceID)
 }
+
+// TODO updatedAt
+func (s *Service) UpdateChoice(ctx context.Context, id, questionID int, text string, orderNum int) error {
+
+	c, err := s.choices.GetChoiceByID(ctx, id)
+
+	if err != nil {
+		return err
+	}
+
+	if err := c.UpdateText(text); err != nil {
+		return err
+	}
+	if err := c.ChangeOrderNum(orderNum); err != nil {
+		return err
+	}
+
+	return s.choices.UpdateChoice(ctx, c)
+}
+
+// func (c *Choice) ID() int             { return c.id }
+// func (c Choice) QuestionID() int      { return c.questionID }
+// func (c Choice) Text() string         { return c.text }
+// func (c Choice) OrderNum() int        { return c.orderNum }
+// func (c Choice) CreatedAt()

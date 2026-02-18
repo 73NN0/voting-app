@@ -22,7 +22,7 @@ func mustNewQuestion(t *testing.T, sessionID uuid.UUID, text string, orderNum, m
 }
 
 func TestCreateQuestion(t *testing.T) {
-	// Setup commun (exécuté une fois par test)
+
 	database, cleanup, err := db.OpenSQLite(":memory:")
 	if err != nil {
 		t.Fatal(err)

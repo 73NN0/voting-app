@@ -5,6 +5,7 @@ import (
 	"time"
 )
 
+// TODO : indepotent
 type Choice struct {
 	createdAt  time.Time
 	text       string
@@ -16,6 +17,7 @@ type Choice struct {
 var (
 	ErrEmptyChoiceText    = errors.New("choice text cannot be empty")
 	ErrInvalidChoiceOrder = errors.New("choice order_num must be >= 1")
+	ErrInvalidQuestionID  = errors.New("invalid question ID")
 )
 
 // question: be able to modify by passing an optional argument ? TODO: see in the futur if I need to change the id of a project's entity struct
@@ -74,7 +76,11 @@ func (c *Choice) ChangeOrderNum(newOrderNum int) error {
 	if newOrderNum < 1 {
 		return ErrInvalidChoiceOrder
 	}
-	c.orderNum = newOrderNum
+
+	if c.orderNum != newOrderNum {
+		c.orderNum = newOrderNum
+	}
+
 	return nil
 }
 
@@ -82,6 +88,18 @@ func (c *Choice) UpdateText(newText string) error {
 	if newText == "" {
 		return ErrEmptyChoiceText
 	}
-	c.text = newText
+
+	if newText != c.text {
+		c.text = newText
+	}
+
+	return nil
+}
+
+func (c *Choice) UpdateQuestionID(newQuestionID int) error {
+	if newQuestionID <= 0 {
+		return ErrInvalidQuestionID
+	}
+	c.questionID = newQuestionID
 	return nil
 }

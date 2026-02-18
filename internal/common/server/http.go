@@ -1,10 +1,11 @@
 package server
 
 import (
-	"log"
 	"log/slog"
 	"net/http"
 	"os"
+
+	. "github.com/73NN0/voting-app/internal/common/logger"
 )
 
 // Middleware type
@@ -21,7 +22,8 @@ func Chain(handler http.Handler, mws ...Middleware) http.Handler {
 // Logging middleware
 func Logging(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("%s %s", r.Method, r.URL.Path)
+
+		Logger.Info("request", "method", r.Method, "path", r.URL.Path)
 		next.ServeHTTP(w, r)
 	})
 }
@@ -31,7 +33,7 @@ func Recovery(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if err := recover(); err != nil {
-				log.Printf("panic: %v", err)
+				Logger.Error("panic: %v", err)
 				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 			}
 		}()

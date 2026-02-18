@@ -7,6 +7,8 @@ import (
 	"github.com/google/uuid"
 )
 
+// TODO add updatedAt
+
 type Question struct {
 	createdAt     time.Time
 	sessionID     uuid.UUID
@@ -71,6 +73,7 @@ func (q *Question) UpdateText(newText string) error {
 	return nil
 }
 
+// NOTE : total order ?
 func (q *Question) ChangeOrderNum(newOrderNum int) error {
 	if newOrderNum < 1 {
 		return ErrInvalidOrderNum
