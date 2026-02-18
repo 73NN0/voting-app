@@ -44,6 +44,8 @@ func NewService(questionRepository question.Repository, choiceRepository choice.
 	}
 }
 
+// questions
+
 func (s *Service) CreateQuestion(ctx context.Context, sessionID uuid.UUID, text string, orderNum int, maxChoices int, allowMultiple bool) (int, error) {
 	exists, err := s.sessions.Exists(ctx, sessionID)
 
@@ -75,6 +77,30 @@ func (s *Service) ListQuestionsBySessionID(ctx context.Context, sessionID uuid.U
 func (s *Service) DeleteQuestion(ctx context.Context, questionID int) error {
 	return s.questions.DeleteQuestion(ctx, questionID)
 }
+
+func (s *Service) UpdateQuestion(ctx context.Context, id int, text string, orderNum, maxChoices int, allowMultiple bool) error {
+	q, err := s.questions.GetQuestionByID(ctx, id)
+
+	if err != nil {
+		return err
+	}
+
+	if err := q.UpdateText(text); err != nil {
+		return err
+	}
+
+	if err := q.ChangeOrderNum(orderNum); err != nil {
+		return err
+	}
+
+	if q.AllowMultiple() != allowMultiple {
+		q.ToggleAllowMultiple()
+	}
+
+	return s.questions.UpdateQuestion(ctx, q)
+}
+
+// choices
 
 func (s *Service) CreateChoice(ctx context.Context, questionID int, orderNum int, text string) (int, error) {
 

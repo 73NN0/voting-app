@@ -18,14 +18,14 @@ type questionDTO struct {
 	SessionID     string       // TEXT (uuid en string)
 	Text          string       // TEXT
 	OrderNum      int          // INTEGER
-	AllowMultiple int          // INTEGER (0 ou 1, SQLite n'a pas de bool natif)
+	AllowMultiple int          // INTEGER (0 or 1, SQLite doesn't have a natif boolean)
 	MaxChoices    int          // INTEGER
 	CreatedAt     db.Timestamp // TEXT (format ISO)
 }
 
 func toQuestionDTO(s *question.Question) questionDTO {
 	var allowMultiple int
-	if s.AllowMultiple() {
+	if s.AllowMultiple() { // convertion
 		allowMultiple = 1
 	}
 
@@ -62,12 +62,12 @@ func (dto questionDTO) toQuestion() (question.Question, error) {
 }
 
 type SqliteQuestionsRepository struct {
-	dbRepo *sql.DB
+	db *sql.DB
 }
 
-func NewSqliteQuestionsRepository(dbrepo *sql.DB) *SqliteQuestionsRepository {
+func NewSqliteQuestionsRepository(db *sql.DB) *SqliteQuestionsRepository {
 
-	return &SqliteQuestionsRepository{dbRepo: dbrepo}
+	return &SqliteQuestionsRepository{db: db}
 }
 
 // ================= Questions ======================= //
@@ -75,7 +75,7 @@ func (s *SqliteQuestionsRepository) CreateQuestion(ctx context.Context, question
 	// TODO indepotent ?
 	dto := toQuestionDTO(&question)
 
-	result, err := s.dbRepo.ExecContext(ctx, `
+	result, err := s.db.ExecContext(ctx, `
 		INSERT INTO question (session_id, text, order_num, allow_multiple, max_choices)
 		VALUES (?, ?, ?, ?, ?)
 	`, dto.SessionID, dto.Text, dto.OrderNum, dto.AllowMultiple, dto.MaxChoices)
@@ -93,7 +93,7 @@ func (s *SqliteQuestionsRepository) CreateQuestion(ctx context.Context, question
 func (r *SqliteQuestionsRepository) GetQuestionByID(ctx context.Context, id int) (question.Question, error) {
 	var dto questionDTO
 
-	err := r.dbRepo.QueryRowContext(ctx, `
+	err := r.db.QueryRowContext(ctx, `
 		SELECT id, session_id, text, order_num, allow_multiple, max_choices, created_at
 		FROM question
 		WHERE id = ?
@@ -118,7 +118,7 @@ func (r *SqliteQuestionsRepository) GetQuestionByID(ctx context.Context, id int)
 }
 
 func (r *SqliteQuestionsRepository) GetQuestionsBySessionID(ctx context.Context, sessionID uuid.UUID) ([]question.Question, error) {
-	rows, err := r.dbRepo.QueryContext(ctx, `
+	rows, err := r.db.QueryContext(ctx, `
 		SELECT id, session_id, text, order_num, allow_multiple, max_choices, created_at
 		FROM question
 		WHERE session_id = ?
@@ -162,9 +162,22 @@ func (r *SqliteQuestionsRepository) GetQuestionsBySessionID(ctx context.Context,
 }
 
 func (r *SqliteQuestionsRepository) DeleteQuestion(ctx context.Context, id int) error {
-	_, err := r.dbRepo.ExecContext(ctx, `DELETE FROM question WHERE id = ?`, id)
+	_, err := r.db.ExecContext(ctx, `DELETE FROM question WHERE id = ?`, id)
 	if err != nil {
 		return fmt.Errorf("failed to delete question %d: %w", id, err)
 	}
+	return nil
+}
+
+func (r *SqliteQuestionsRepository) UpdateQuestion(ctx context.Context, q question.Question) error {
+
+	if _, err := r.db.ExecContext(ctx, `
+		UPDATE question
+		SET text = ?, order_num = ?, allow_multiple = ?, max_choices = ?
+		WHERE id = ?
+	`, q.Text(), q.OrderNum(), q.AllowMultiple(), q.MaxChoices(), q.ID()); err != nil {
+		return fmt.Errorf("failed to update question %d : %w", q.ID(), err)
+	}
+
 	return nil
 }

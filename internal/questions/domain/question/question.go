@@ -79,6 +79,22 @@ func (q *Question) ChangeOrderNum(newOrderNum int) error {
 	return nil
 }
 
+func (q *Question) UpdateMaxChoices(newMax int) error {
+	if newMax < 1 {
+		return ErrInvalidMaxChoice
+	}
+	q.maxChoices = newMax
+	return nil
+}
+
+func (q *Question) ToggleAllowMultiple() {
+	q.allowMultiple = !q.allowMultiple
+}
+
+func (q *Question) UpdateAllowMultiple(allow bool) {
+	q.allowMultiple = allow
+}
+
 func Rehydrate(
 	id int,
 	sessionID uuid.UUID,
