@@ -181,3 +181,20 @@ func (r *SqliteQuestionsRepository) UpdateQuestion(ctx context.Context, q questi
 
 	return nil
 }
+
+func (r *SqliteQuestionsRepository) IsQuestionExists(ctx context.Context, questionID int) (bool, error) {
+	var dummy int
+
+	if err := r.db.QueryRowContext(ctx, `
+		SELECT 1 FROM question WHERE id = ? LIMIT 1
+	`, questionID).Scan(&dummy); err != nil {
+
+		if err == sql.ErrNoRows {
+			return false, nil
+		}
+
+		return false, fmt.Errorf("failed to check question existence : %w", err)
+	}
+
+	return true, nil
+}

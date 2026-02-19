@@ -12,4 +12,5 @@ type Repository interface {
 	GetQuestionsBySessionID(context.Context, uuid.UUID /*session id */) ([]Question, error)
 	DeleteQuestion(context.Context, int /*question id */) error
 	UpdateQuestion(context.Context, Question) error
+	IsQuestionExists(context.Context, int /*question id */) (bool, error)
 }

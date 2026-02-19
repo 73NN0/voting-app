@@ -96,7 +96,7 @@ func (r *SqliteChoicesRepository) GetChoiceByID(ctx context.Context, id int) (ch
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return choice.Choice{}, fmt.Errorf("choice %d not found", id)
+			return choice.Choice{}, fmt.Errorf("choice %d not found: %w", id, sql.ErrNoRows)
 		}
 		return choice.Choice{}, fmt.Errorf("failed to query choice: %w", err)
 	}
@@ -152,4 +152,36 @@ func (q *SqliteChoicesRepository) DeleteChoice(ctx context.Context, choiceID int
 	`, choiceID)
 
 	return err
+}
+
+// TODO : updatedAt
+func (r *SqliteChoicesRepository) UpdateChoice(ctx context.Context, q choice.Choice) error {
+
+	id := q.ID()
+	if _, err := r.db.ExecContext(ctx, `
+		UPDATE choice
+		SET text = ?, order_num = ?, question_id = ?
+		WHERE id = ?
+	`, q.Text(), q.OrderNum(), q.QuestionID(), id); err != nil {
+		return fmt.Errorf("failed to update choice %d : %w", id, err)
+	}
+
+	return nil
+}
+
+func (r *SqliteChoicesRepository) IsChoiceExists(ctx context.Context, choiceID int) (bool, error) {
+	var dummy int
+
+	if err := r.db.QueryRowContext(ctx, `
+		SELECT 1 FROM choice WHERE id = ? LIMIT 1
+	`, choiceID).Scan(&dummy); err != nil {
+
+		if err == sql.ErrNoRows {
+			return false, nil
+		}
+
+		return false, fmt.Errorf("failed to check choice existence : %w", err)
+	}
+
+	return true, nil
 }

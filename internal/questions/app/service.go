@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 
@@ -12,6 +13,8 @@ import (
 
 var (
 	ErrVoteSessionNotFound = errors.New("vote session not found")
+	ErrQuestionNotFound    = errors.New("question not found")
+	ErrChoiceNotFound      = errors.New("choice not found ")
 )
 
 type SessionChecker interface {
@@ -122,7 +125,7 @@ func (s *Service) DeleteChoice(ctx context.Context, choiceID int) error {
 }
 
 // TODO updatedAt
-func (s *Service) UpdateChoice(ctx context.Context, id, questionID int, text string, orderNum int) error {
+func (s *Service) UpdateChoice(ctx context.Context, id int, text string, orderNum int) error {
 
 	c, err := s.choices.GetChoiceByID(ctx, id)
 
@@ -140,8 +143,39 @@ func (s *Service) UpdateChoice(ctx context.Context, id, questionID int, text str
 	return s.choices.UpdateChoice(ctx, c)
 }
 
-// func (c *Choice) ID() int             { return c.id }
-// func (c Choice) QuestionID() int      { return c.questionID }
-// func (c Choice) Text() string         { return c.text }
-// func (c Choice) OrderNum() int        { return c.orderNum }
-// func (c Choice) CreatedAt()
+func (s *Service) GetChoiceByID(ctx context.Context, choiceID int) (choice.Choice, error) {
+	c, err := s.choices.GetChoiceByID(ctx, choiceID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return choice.Choice{}, ErrChoiceNotFound
+		}
+		return choice.Choice{}, err
+	}
+
+	return c, nil
+}
+
+func (s *Service) ChangeChoiceQuestion(ctx context.Context, choiceID int, newQuestionID int) error {
+
+	c, err := s.choices.GetChoiceByID(ctx, choiceID)
+
+	if err != nil {
+		return err
+	}
+
+	exists, err := s.questions.IsQuestionExists(ctx, newQuestionID)
+
+	if err != nil {
+		return err
+	}
+
+	if !exists {
+		return ErrQuestionNotFound
+	}
+
+	if err := c.UpdateQuestionID(newQuestionID); err != nil {
+		return err
+	}
+
+	return s.choices.UpdateChoice(ctx, c)
+}

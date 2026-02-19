@@ -10,4 +10,5 @@ type Repository interface {
 	GetChoicesByQuestionID(context.Context, int /* question id */) ([]Choice, error)
 	DeleteChoice(context.Context, int /* choice id */) error
 	UpdateChoice(context.Context, Choice) error
+	IsChoiceExists(context.Context, int /* choice id */) (bool, error)
 }

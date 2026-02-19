@@ -14,6 +14,8 @@ import (
 	"github.com/google/uuid"
 )
 
+// TODO : getChoiceByID
+// TODO  later : nobody should be able to get questions & choices from another session
 type HttpHandler struct {
 	service *app.Service
 }
@@ -256,7 +258,7 @@ func ValidateUpdateChoice(req updateChoiceRequest) error {
 func (h *HttpHandler) UpdateChoice(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	idStr := r.URL.Path[1:] // ou r.PathValue("id")
+	idStr := r.PathValue("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		httperr.BadRequest(w, "invalid choice ID")
@@ -273,21 +275,21 @@ func (h *HttpHandler) UpdateChoice(w http.ResponseWriter, r *http.Request) {
 		httperr.BadRequest(w, err.Error())
 		return
 	}
-	// FIXME
-	c, err := h.service.UpdateChoice(ctx, id, req.OrderNum, req.Text)
+
+	err = h.service.UpdateChoice(ctx, id, req.Text, req.OrderNum)
 	if err != nil {
 		httperr.NotFound(w, "choice not found")
 		return
 	}
 
-	httpstat.OkJSON(w, c)
+	httpstat.NoContent(w, "choice updated")
 }
 
 // DeleteChoice
 func (h *HttpHandler) DeleteChoice(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	idStr := r.URL.Path[1:] // ou r.PathValue("id")
+	idStr := r.PathValue("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		httperr.BadRequest(w, "invalid choice ID")
@@ -304,20 +306,68 @@ func (h *HttpHandler) DeleteChoice(w http.ResponseWriter, r *http.Request) {
 
 func AddRoutes(r *server.Router, h *HttpHandler) {
 	r.Group("/questions", func(sub *server.Router) {
-		sub.Handle("/{$}", server.Chain(
+
+		// URL: GET /questions/ or GET /questions/anything (catch-all)
+		sub.Handle("GET /{$}", server.Chain(
 			http.HandlerFunc(h.teapot),
 			server.Logging, server.Recovery, server.CORS,
 		))
 
+		// CRUD Questions
+		// URL: POST /questions
+		sub.Handle("POST /", server.Chain(
+			http.HandlerFunc(h.CreateQuestion),
+			server.Logging, server.Recovery, server.CORS,
+		))
+
+		// URL: GET /questions/{id}
+		sub.Handle("GET /{id}", server.Chain(
+			http.HandlerFunc(h.GetQuestionByID),
+			server.Logging, server.Recovery, server.CORS,
+		))
+
+		// URL: PUT /questions/{id}
+		sub.Handle("PUT /{id}", server.Chain(
+			http.HandlerFunc(h.UpdateQuestion),
+			server.Logging, server.Recovery, server.CORS,
+		))
+
+		// URL: DELETE /questions/{id}
+		sub.Handle("DELETE /{id}", server.Chain(
+			http.HandlerFunc(h.DeleteQuestion),
+			server.Logging, server.Recovery, server.CORS,
+		))
+
+		// Liste par session
+		// URL: GET /questions/session/{sessionID}
 		sub.Handle("GET /session/{sessionID}", server.Chain(
 			http.HandlerFunc(h.ListQuestionsBySessionID),
 			server.Logging, server.Recovery, server.CORS,
 		))
 
-		sub.Handle("/{id}", server.Chain(
-			http.HandlerFunc(h.GetQuestionByID),
+		// CRUD Choices (nested under a question)
+		// URL: POST /questions/{questionID}/choices
+		sub.Handle("POST /{questionID}/choices", server.Chain(
+			http.HandlerFunc(h.CreateChoice),
 			server.Logging, server.Recovery, server.CORS,
 		))
 
+		// URL: GET /questions/{questionID}/choices
+		sub.Handle("GET /{questionID}/choices", server.Chain(
+			http.HandlerFunc(h.ListChoicesByQuestionID),
+			server.Logging, server.Recovery, server.CORS,
+		))
+
+		// URL: PUT /questions/{questionID}/choices/{choiceID}
+		sub.Handle("PUT /{questionID}/choices/{choiceID}", server.Chain(
+			http.HandlerFunc(h.UpdateChoice),
+			server.Logging, server.Recovery, server.CORS,
+		))
+
+		// URL: DELETE /questions/{questionID}/choices/{choiceID}
+		sub.Handle("DELETE /{questionID}/choices/{choiceID}", server.Chain(
+			http.HandlerFunc(h.DeleteChoice),
+			server.Logging, server.Recovery, server.CORS,
+		))
 	})
 }
