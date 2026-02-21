@@ -15,7 +15,7 @@ import (
 )
 
 // TODO : getChoiceByID
-// TODO  later : nobody should be able to get questions & choices from another session
+// TODO TEST  later : test nobody should be able to get questions & choices from another session
 type HttpHandler struct {
 	service *app.Service
 }
