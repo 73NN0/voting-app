@@ -3,12 +3,13 @@ package adapters
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/73NN0/voting-app/internal/common/db"
 	"github.com/google/uuid"
 
-	"github.com/73NN0/voting-app/internal/questions/domain/question"
+	"github.com/73NN0/voting-app/internal/question/domain/question"
 )
 
 // ======================= DTO ==================== //
@@ -108,8 +109,8 @@ func (r *SqliteQuestionsRepository) GetQuestionByID(ctx context.Context, id int)
 	)
 
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return question.Question{}, fmt.Errorf("question %d not found", id)
+		if errors.Is(err, sql.ErrNoRows) {
+			return question.Question{}, question.ErrNotFound
 		}
 		return question.Question{}, fmt.Errorf("failed to query question: %w", err)
 	}
@@ -162,8 +163,13 @@ func (r *SqliteQuestionsRepository) GetQuestionsBySessionID(ctx context.Context,
 }
 
 func (r *SqliteQuestionsRepository) DeleteQuestion(ctx context.Context, id int) error {
+
+	// TODO later check id
 	_, err := r.db.ExecContext(ctx, `DELETE FROM question WHERE id = ?`, id)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return question.ErrNotFound
+		}
 		return fmt.Errorf("failed to delete question %d: %w", id, err)
 	}
 	return nil
@@ -176,6 +182,11 @@ func (r *SqliteQuestionsRepository) UpdateQuestion(ctx context.Context, q questi
 		SET text = ?, order_num = ?, allow_multiple = ?, max_choices = ?
 		WHERE id = ?
 	`, q.Text(), q.OrderNum(), q.AllowMultiple(), q.MaxChoices(), q.ID()); err != nil {
+
+		if errors.Is(err, sql.ErrNoRows) {
+			return question.ErrNotFound
+		}
+
 		return fmt.Errorf("failed to update question %d : %w", q.ID(), err)
 	}
 
@@ -189,7 +200,7 @@ func (r *SqliteQuestionsRepository) IsQuestionExists(ctx context.Context, questi
 		SELECT 1 FROM question WHERE id = ? LIMIT 1
 	`, questionID).Scan(&dummy); err != nil {
 
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return false, nil
 		}
 

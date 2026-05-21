@@ -14,10 +14,17 @@ type Choice struct {
 	orderNum   int
 }
 
+const (
+	NotFound          = "choice not found"
+	InvalidQuestionID = "invalid question ID"
+	InvalidChoiceID   = "invalid choice ID"
+)
+
 var (
 	ErrEmptyChoiceText    = errors.New("choice text cannot be empty")
 	ErrInvalidChoiceOrder = errors.New("choice order_num must be >= 1")
-	ErrInvalidQuestionID  = errors.New("invalid question ID")
+	ErrInvalidQuestionID  = errors.New(InvalidQuestionID)
+	ErrNotFound           = errors.New(NotFound)
 )
 
 // question: be able to modify by passing an optional argument ? TODO: see in the futur if I need to change the id of a project's entity struct

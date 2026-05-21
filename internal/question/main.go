@@ -7,9 +7,9 @@ import (
 
 	"github.com/73NN0/voting-app/internal/common/db"
 	"github.com/73NN0/voting-app/internal/common/server"
-	"github.com/73NN0/voting-app/internal/questions/adapters"
-	"github.com/73NN0/voting-app/internal/questions/app"
-	"github.com/73NN0/voting-app/internal/questions/ports"
+	"github.com/73NN0/voting-app/internal/question/adapters"
+	"github.com/73NN0/voting-app/internal/question/app"
+	"github.com/73NN0/voting-app/internal/question/ports"
 	sessions "github.com/73NN0/voting-app/internal/sessions/adapters"
 )
 

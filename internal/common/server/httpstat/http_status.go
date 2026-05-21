@@ -42,11 +42,8 @@ func Accepted(w http.ResponseWriter, msg string) {
 	stat(w, http.StatusAccepted, StatusResponse{Status: msg})
 }
 
-func NoContentJSON(w http.ResponseWriter, v interface{}) {
-	stat(w, http.StatusNoContent, v)
-}
-
-// 204
-func NoContent(w http.ResponseWriter, msg string) {
-	stat(w, http.StatusNoContent, StatusResponse{Status: msg})
+// 204 - "A 204 response MUST NOT include any message body". RFC 9110
+// [RFC](https://datatracker.ietf.org/doc/html/rfc9110#name-204-no-content)
+func NoContent(w http.ResponseWriter) {
+	w.WriteHeader(http.StatusNoContent)
 }

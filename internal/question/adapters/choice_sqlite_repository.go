@@ -3,10 +3,11 @@ package adapters
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/73NN0/voting-app/internal/common/db"
-	"github.com/73NN0/voting-app/internal/questions/domain/choice"
+	"github.com/73NN0/voting-app/internal/question/domain/choice"
 )
 
 // ======================= DTO ==================== //
@@ -95,8 +96,8 @@ func (r *SqliteChoicesRepository) GetChoiceByID(ctx context.Context, id int) (ch
 	)
 
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return choice.Choice{}, fmt.Errorf("choice %d not found: %w", id, sql.ErrNoRows)
+		if errors.Is(err, sql.ErrNoRows) {
+			return choice.Choice{}, choice.ErrNotFound
 		}
 		return choice.Choice{}, fmt.Errorf("failed to query choice: %w", err)
 	}
@@ -151,6 +152,10 @@ func (q *SqliteChoicesRepository) DeleteChoice(ctx context.Context, choiceID int
 		DELETE FROM choice WHERE id = ?
 	`, choiceID)
 
+	if errors.Is(err, sql.ErrNoRows) {
+		return choice.ErrNotFound
+	}
+
 	return err
 }
 
@@ -163,6 +168,11 @@ func (r *SqliteChoicesRepository) UpdateChoice(ctx context.Context, q choice.Cho
 		SET text = ?, order_num = ?, question_id = ?
 		WHERE id = ?
 	`, q.Text(), q.OrderNum(), q.QuestionID(), id); err != nil {
+
+		if errors.Is(err, sql.ErrNoRows) {
+			return choice.ErrNotFound
+		}
+
 		return fmt.Errorf("failed to update choice %d : %w", id, err)
 	}
 
@@ -176,7 +186,7 @@ func (r *SqliteChoicesRepository) IsChoiceExists(ctx context.Context, choiceID i
 		SELECT 1 FROM choice WHERE id = ? LIMIT 1
 	`, choiceID).Scan(&dummy); err != nil {
 
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return false, nil
 		}
 

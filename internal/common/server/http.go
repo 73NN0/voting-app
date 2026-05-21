@@ -1,11 +1,9 @@
 package server
 
 import (
-	"log/slog"
 	"net/http"
-	"os"
 
-	. "github.com/73NN0/voting-app/internal/common/logger"
+	"github.com/73NN0/voting-app/internal/common/logger"
 )
 
 // Middleware type
@@ -23,7 +21,7 @@ func Chain(handler http.Handler, mws ...Middleware) http.Handler {
 func Logging(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		Logger.Info("request", "method", r.Method, "path", r.URL.Path)
+		logger.Logger.Info("request", "method", r.Method, "path", r.URL.Path)
 		next.ServeHTTP(w, r)
 	})
 }
@@ -33,7 +31,7 @@ func Recovery(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if err := recover(); err != nil {
-				Logger.Error("panic: %v", err)
+				logger.Logger.Error("panic: %v", err)
 				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 			}
 		}()
@@ -76,29 +74,4 @@ func (r *Router) Handle(pattern string, handler http.Handler, mws ...Middleware)
 
 func (r *Router) Handler() http.Handler {
 	return r.mux
-}
-
-func NewLogger() *slog.Logger {
-
-	if os.Getenv("ENV") == "production" {
-		return slog.New(slog.NewJSONHandler(os.Stdout, nil))
-	} else {
-		return slog.New(slog.NewTextHandler(os.Stdout, nil))
-	}
-}
-
-func RunHTTPServerOnAddr(addr string, handler http.Handler) {
-	logger := NewLogger()
-	rootRouter := NewRouter()
-
-	// we are mounting all APIs under /api path
-	rootRouter.Handle("/api", handler)
-
-	logger.Info("Starting HTTP server")
-
-	err := http.ListenAndServe(addr, rootRouter.Handler())
-	if err != nil {
-		logger.Error("Unable to start HTTP server")
-		os.Exit(1)
-	}
 }

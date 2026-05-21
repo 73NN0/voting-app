@@ -9,6 +9,12 @@ type ErrorResponse struct {
 	Error string `json:"error"`
 }
 
+var (
+	InternalServerErrorMsg = "internal status error"
+	NotFoundMsg            = "not found"
+	BadRequestMsg          = "404 not found"
+)
+
 func Error(w http.ResponseWriter, msg string, code int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)

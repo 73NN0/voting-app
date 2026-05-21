@@ -19,11 +19,19 @@ type Question struct {
 	allowMultiple bool
 }
 
+const (
+	InvalidQuestionID string = "invalid question id"
+	NotFound          string = "question not found"
+	InvalidSessionID  string = "invalid session id"
+)
+
 var (
 	ErrEmptyText         = errors.New("question text cannot be empty")
 	ErrInvalidOrderNum   = errors.New("order_num must be >= 1")
 	ErrInvalidMaxChoice  = errors.New("max_choices must be >= 1")
-	ErrInvalidQuestionID = errors.New("invalid question id")
+	ErrInvalidQuestionID = errors.New(InvalidQuestionID)
+	ErrNotFound          = errors.New(NotFound)
+	ErrSessionID         = errors.New(InvalidSessionID)
 )
 
 func (q Question) ID() int              { return q.id }

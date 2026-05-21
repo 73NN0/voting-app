@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/73NN0/voting-app/internal/common/db"
-	"github.com/73NN0/voting-app/internal/questions/adapters"
-	"github.com/73NN0/voting-app/internal/questions/domain/question"
+	"github.com/73NN0/voting-app/internal/question/adapters"
+	"github.com/73NN0/voting-app/internal/question/domain/question"
 	"github.com/google/uuid"
 )
 

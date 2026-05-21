@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/73NN0/voting-app/internal/questions/app"
+	"github.com/73NN0/voting-app/internal/question/app"
 	"github.com/73NN0/voting-app/internal/sessions/domain/session"
 	"github.com/google/uuid"
 )

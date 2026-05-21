@@ -2,19 +2,16 @@ package app
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 
-	"github.com/73NN0/voting-app/internal/questions/domain/choice"
-	"github.com/73NN0/voting-app/internal/questions/domain/question"
+	"github.com/73NN0/voting-app/internal/question/domain/choice"
+	"github.com/73NN0/voting-app/internal/question/domain/question"
 	"github.com/google/uuid"
 )
 
 var (
 	ErrVoteSessionNotFound = errors.New("vote session not found")
-	ErrQuestionNotFound    = errors.New("question not found")
-	ErrChoiceNotFound      = errors.New("choice not found ")
 )
 
 type SessionChecker interface {
@@ -99,7 +96,7 @@ func (s *Service) UpdateQuestion(ctx context.Context, id int, text string, order
 	if q.AllowMultiple() != allowMultiple {
 		q.ToggleAllowMultiple()
 	}
-
+	// TODO: maybe change to s.UpdateQuestion (the service fct become the interface)
 	return s.questions.UpdateQuestion(ctx, q)
 }
 
@@ -127,7 +124,7 @@ func (s *Service) DeleteChoice(ctx context.Context, choiceID int) error {
 // TODO updatedAt
 func (s *Service) UpdateChoice(ctx context.Context, id int, text string, orderNum int) error {
 
-	c, err := s.choices.GetChoiceByID(ctx, id)
+	c, err := s.GetChoiceByID(ctx, id)
 
 	if err != nil {
 		return err
@@ -144,20 +141,12 @@ func (s *Service) UpdateChoice(ctx context.Context, id int, text string, orderNu
 }
 
 func (s *Service) GetChoiceByID(ctx context.Context, choiceID int) (choice.Choice, error) {
-	c, err := s.choices.GetChoiceByID(ctx, choiceID)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return choice.Choice{}, ErrChoiceNotFound
-		}
-		return choice.Choice{}, err
-	}
-
-	return c, nil
+	return s.choices.GetChoiceByID(ctx, choiceID)
 }
 
 func (s *Service) ChangeChoiceQuestion(ctx context.Context, choiceID int, newQuestionID int) error {
 
-	c, err := s.choices.GetChoiceByID(ctx, choiceID)
+	c, err := s.GetChoiceByID(ctx, choiceID)
 
 	if err != nil {
 		return err
@@ -170,12 +159,12 @@ func (s *Service) ChangeChoiceQuestion(ctx context.Context, choiceID int, newQue
 	}
 
 	if !exists {
-		return ErrQuestionNotFound
+		return question.ErrNotFound
 	}
 
 	if err := c.UpdateQuestionID(newQuestionID); err != nil {
 		return err
 	}
-
+	// TODO: maybe change to s.UpdateChoice (the service fct become the interface)
 	return s.choices.UpdateChoice(ctx, c)
 }
