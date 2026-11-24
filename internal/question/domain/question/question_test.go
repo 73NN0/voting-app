@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/73NN0/voting-app/internal/questions/domain/question"
+	"github.com/73NN0/voting-app/internal/question/domain/question"
 	"github.com/google/uuid"
 )
 

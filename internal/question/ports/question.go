@@ -30,7 +30,7 @@ type questionRequest struct {
 	AllowMultiple bool      `json:"allow_multiple"`
 }
 
-func Validate(req questionRequest) error {
+func validateQuestionRequest(req questionRequest) error {
 	if req.SessionID == uuid.Nil {
 		return errors.New("session_id is required")
 	}
@@ -61,9 +61,9 @@ func (h *HttpHandler) CreateQuestion(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := Validate(req); err != nil {
+	if err := validateQuestionRequest(req); err != nil {
 		logger.Logger.Warn(validateFailed, "err", err)
-		httperr.BadRequest(w, err.Error())
+		httperr.BadRequest(w, validateFailed)
 		return
 	}
 
@@ -74,7 +74,7 @@ func (h *HttpHandler) CreateQuestion(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		logger.Logger.Error(createQuestionFailed, "err", err)
-		httperr.InternalServerError(w, err.Error())
+		httperr.InternalServerError(w, httperr.InternalServerErrorMsg)
 		return
 	}
 

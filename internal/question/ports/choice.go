@@ -11,6 +11,7 @@ import (
 	"github.com/73NN0/voting-app/internal/common/server/httpstat"
 	"github.com/73NN0/voting-app/internal/question/domain/choice"
 	"github.com/73NN0/voting-app/internal/question/domain/question"
+	"github.com/google/uuid"
 )
 
 const (
@@ -19,7 +20,29 @@ const (
 	deleteChoiceFailed = "delete choice failed"
 )
 
-// TODO : Choice Request ObJ !
+type choiceRequest struct {
+	QuestionID uuid.UUID `json:"question_id"`
+	Text       string    `json:"text"`
+	OrderNum   int       `json:"order_num"`
+}
+
+func validateChoiceRequest(req choiceRequest) error {
+
+	if err := uuid.Validate(req.QuestionID.String()); err != nil {
+		return errors.New("invalid question id")
+	}
+
+	if req.Text == "" {
+		return errors.New("text is required")
+	}
+
+	if req.OrderNum <= 0 {
+		return errors.New("order_num must be positive")
+	}
+
+	return nil
+}
+
 func (h *HttpHandler) CreateChoice(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -31,10 +54,7 @@ func (h *HttpHandler) CreateChoice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req struct {
-		Text     string `json:"text"`
-		OrderNum int    `json:"order_num"`
-	}
+	var req choiceRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		logger.Logger.Error(invalidJSON, "err", err)
@@ -42,13 +62,27 @@ func (h *HttpHandler) CreateChoice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := validateChoiceRequest(req); err != nil {
+		logger.Logger.Warn(validateFailed, "err", err)
+		httperr.BadRequest(w, validateFailed)
+		return
+	}
+
 	id, err := h.service.CreateChoice(ctx, questionID, req.OrderNum, req.Text)
 	if err != nil {
-		if errors.Is(err, question.ErrInvalidQuestionID) {
-			logger.Logger.Warn(question.InvalidQuestionID, "id", id, "question_id", questionID, "err", err, "text", req.Text)
-			httperr.BadRequest(w, question.InvalidQuestionID)
+
+		if errors.Is(err, choice.ErrInvalidQuestionID) {
+			logger.Logger.Warn(choice.InvalidQuestionID, "question_id", questionID, "err", err)
+			httperr.BadRequest(w, choice.InvalidQuestionID)
 			return
 		}
+
+		if errors.Is(err, question.ErrNotFound) {
+			logger.Logger.Warn(question.NotFound, "question_id", questionID, "err", err)
+			httperr.NotFound(w, question.NotFound)
+			return
+		}
+
 		logger.Logger.Error(createChoiceFailed, "err", err)
 		httperr.InternalServerError(w, httperr.InternalServerErrorMsg)
 		return

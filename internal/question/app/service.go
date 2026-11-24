@@ -79,7 +79,7 @@ func (s *Service) DeleteQuestion(ctx context.Context, questionID int) error {
 }
 
 func (s *Service) UpdateQuestion(ctx context.Context, id int, text string, orderNum, maxChoices int, allowMultiple bool) error {
-	q, err := s.questions.GetQuestionByID(ctx, id)
+	q, err := s.GetQuestionByID(ctx, id)
 
 	if err != nil {
 		return err
@@ -103,12 +103,25 @@ func (s *Service) UpdateQuestion(ctx context.Context, id int, text string, order
 // choices
 
 func (s *Service) CreateChoice(ctx context.Context, questionID int, orderNum int, text string) (int, error) {
-
+	// don't need to call a function to check that
 	if questionID <= 0 {
-		return 0, errors.New("invalid")
+		return 0, choice.ErrInvalidQuestionID
 	}
 
-	c := choice.NewChoice(questionID, orderNum, text)
+	exists, err := s.questions.IsQuestionExists(ctx, questionID)
+	if err != nil {
+		return 0, err
+	}
+
+	if !exists {
+		return 0, question.ErrNotFound
+	}
+
+	c, err := choice.NewChoice(questionID, orderNum, text)
+
+	if err != nil {
+		return 0, err
+	}
 
 	return s.choices.CreateChoice(ctx, c)
 }

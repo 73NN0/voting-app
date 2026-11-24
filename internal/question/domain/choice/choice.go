@@ -18,13 +18,15 @@ const (
 	NotFound          = "choice not found"
 	InvalidQuestionID = "invalid question ID"
 	InvalidChoiceID   = "invalid choice ID"
+	InvalidText       = "invalid text"
 )
 
 var (
-	ErrEmptyChoiceText    = errors.New("choice text cannot be empty")
-	ErrInvalidChoiceOrder = errors.New("choice order_num must be >= 1")
-	ErrInvalidQuestionID  = errors.New(InvalidQuestionID)
-	ErrNotFound           = errors.New(NotFound)
+	ErrEmptyChoiceText   = errors.New("choice text cannot be empty")
+	ErrInvalidOrderNum   = errors.New("choice order_num must be >= 1")
+	ErrInvalidQuestionID = errors.New(InvalidQuestionID)
+	ErrNotFound          = errors.New(NotFound)
+	ErrInvalidText       = errors.New(InvalidText)
 )
 
 // question: be able to modify by passing an optional argument ? TODO: see in the futur if I need to change the id of a project's entity struct
@@ -39,21 +41,20 @@ func (c Choice) Text() string         { return c.text }
 func (c Choice) OrderNum() int        { return c.orderNum }
 func (c Choice) CreatedAt() time.Time { return c.createdAt }
 
-func NewChoice(questionID, orderNum int, text string) Choice {
-	return Choice{
-		questionID: questionID,
-		text:       text,
-		orderNum:   orderNum,
+func NewChoice(questionID, orderNum int, text string) (Choice, error) {
+	if text == "" {
+		return Choice{}, ErrInvalidText
 	}
-}
 
-func NewChoiceWithID(id, questionID, orderNum int, text string) Choice {
+	if orderNum < 1 {
+		return Choice{}, ErrInvalidOrderNum
+	}
+
 	return Choice{
-		id:         id,
 		questionID: questionID,
 		text:       text,
 		orderNum:   orderNum,
-	}
+	}, nil
 }
 
 func Rehydrate(
@@ -81,7 +82,7 @@ func Rehydrate(
 
 func (c *Choice) ChangeOrderNum(newOrderNum int) error {
 	if newOrderNum < 1 {
-		return ErrInvalidChoiceOrder
+		return ErrInvalidOrderNum
 	}
 
 	if c.orderNum != newOrderNum {
